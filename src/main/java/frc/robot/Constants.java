@@ -18,12 +18,22 @@ import edu.wpi.first.wpilibj.RobotBase;
  * constants are needed, to reduce verbosity.
  */
 public final class Constants {
+
+   public static final class OperatorConstants {
+    // USB order in the Driver Station. Make sure these match what you see there.
+    public static final int DRIVER_CONTROLLER_PORT = 0;
+    public static final int OPERATOR_CONTROLLER_PORT = 1;
+    public static final int OUTREACH_CONTROLLER_PORT = 2;
+ 
+    public static final double DEADBAND = 0.1;
+  }
   
  public static final class DrivebaseConstants {
     public static final double MAX_SPEED = Units.feetToMeters(17.5);
   }
 
-  public static class OperatorConstants {
-    public static final int kDriverControllerPort = 0;
+   public static class KrakenX44 {
+    public static final AngularVelocity kFreeSpeed = RPM.of(7530);
   }
+
 }
