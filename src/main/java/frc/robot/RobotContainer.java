@@ -4,12 +4,16 @@
 
 package frc.robot;
 
+import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants.OperatorConstants;
+import frc.robot.subsystems.Elevator;
+import frc.robot.subsystems.Elevator;
+import frc.robot.subsystems.Elevator.Setpoint;
 import frc.robot.subsystems.Intake;
 
 /**
@@ -21,6 +25,7 @@ import frc.robot.subsystems.Intake;
 public class RobotContainer {
   // Subsystems
   private final Intake intake = new Intake();
+  private final Elevator elevator = new Elevator();
 
   // Controllers
   private final CommandXboxController driverXbox =
@@ -48,6 +53,13 @@ public class RobotContainer {
     // Home the pivot whenever the robot is enabled in auto or teleop
     RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop()).onTrue(intake.homingCommand());
 
+    // Home the elevator on the first enable after boot only (not on every re-enable, so it
+    // doesn't drop to the bottom between auto and teleop)
+    RobotModeTriggers.autonomous()
+        .or(RobotModeTriggers.teleop())
+        .and(() -> !elevator.isHomed())
+        .onTrue(elevator.homeCommand());
+
     // Driver
     driverXbox.leftTrigger().whileTrue(intake.intakeCommand());
     driverXbox.y().onTrue(intake.stowCommand());
@@ -59,6 +71,18 @@ public class RobotContainer {
     codriverXbox.start().onTrue(intake.homingCommand());
     codriverXbox.povDown().whileTrue(intake.ejectCommand()); // spit game piece out
     codriverXbox.povUp().whileTrue(intake.agitateCommand()); // wiggle pivot to unjam
+
+    // Codriver - elevator setpoints
+    codriverXbox.a().onTrue(elevator.setSetpoint(Setpoint.kFeeder)); // pick up from feeder
+    codriverXbox.b().onTrue(elevator.setSetpoint(Setpoint.kL1));
+    codriverXbox.leftBumper().onTrue(elevator.setSetpoint(Setpoint.kL2));
+    codriverXbox.rightBumper().onTrue(elevator.setSetpoint(Setpoint.kL3));
+
+    // Codriver - elevator manual
+    codriverXbox.back().whileTrue(elevator.homeCommand()); // re-zero, hold until it finishes
+    codriverXbox
+        .axisMagnitudeGreaterThan(XboxController.Axis.kRightY.value, 0.1)
+        .whileTrue(elevator.jog(() -> -codriverXbox.getRightY())); // for finding setpoints
 
     // Outreach
     outreachXbox.leftTrigger().whileTrue(intake.intakeCommand());

@@ -36,4 +36,18 @@ public final class Constants {
     public static final AngularVelocity kFreeSpeed = RPM.of(7530);
   }
 
+  public static final class ElevatorConstants {
+
+  // PLACEHOLDERS. Deliberately tiny so nothing can slam into the top before
+    // we should replace these later using CTRE tuning. still unsure how to get the real values must research later.
+    public static final double ELEVATOR_FEEDER_SETPOINT = 2.0; // TODO
+    public static final double ELEVATOR_L1_SETPOINT = 4.0; // TODO
+    public static final double ELEVATOR_L2_SETPOINT = 6.0; // TODO
+    public static final double ELEVATOR_L3_SETPOINT = 8.0; // TODO
+ 
+    public static final double ELEVATOR_MIN_POSITION = 0.0;
+    /** Highest SAFE position, a bit below the real top hard stop. */
+    public static final double ELEVATOR_MAX_POSITION = 10.0; // TODO
+    public static final double ELEVATOR_TOLERANCE = 0.25;
+  }
 }
