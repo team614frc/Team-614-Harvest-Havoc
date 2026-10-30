@@ -4,10 +4,13 @@
 
 package frc.robot;
 
-import frc.robot.Constants.OperatorConstants;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.Constants.OperatorConstants;
+import frc.robot.subsystems.Intake;
 
 /**
  * This class is where the bulk of the robot should be declared. Since Command-based is a
@@ -16,15 +19,19 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * subsystems, commands, and trigger mappings) should be declared here.
  */
 public class RobotContainer {
-  // The robot's subsystems and commands are defined here...
+  // Subsystems
+  private final Intake intake = new Intake();
 
-  // Replace with CommandPS4Controller or CommandJoystick if needed
-  private final CommandXboxController m_driverController =
-      new CommandXboxController(OperatorConstants.kDriverControllerPort);
+  // Controllers
+  private final CommandXboxController driverXbox =
+      new CommandXboxController(OperatorConstants.DRIVER_CONTROLLER_PORT);
+  private final CommandXboxController codriverXbox =
+      new CommandXboxController(OperatorConstants.OPERATOR_CONTROLLER_PORT);
+  private final CommandXboxController outreachXbox =
+      new CommandXboxController(OperatorConstants.OUTREACH_CONTROLLER_PORT);
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
-    // Configure the trigger bindings
     configureBindings();
   }
 
@@ -38,11 +45,23 @@ public class RobotContainer {
    * joysticks}.
    */
   private void configureBindings() {
-    // Schedule `ExampleCommand` when `exampleCondition` changes to `true`
-   
+    // Home the pivot whenever the robot is enabled in auto or teleop
+    RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop()).onTrue(intake.homingCommand());
 
-    // Schedule `exampleMethodCommand` when the Xbox controller's B button is pressed,
-    // cancelling on release.
+    // Driver
+    driverXbox.leftTrigger().whileTrue(intake.intakeCommand());
+    driverXbox.y().onTrue(intake.stowCommand());
+
+    // Codriver
+    codriverXbox.y().onTrue(intake.stowCommand());
+    codriverXbox.leftTrigger().whileTrue(intake.intakeCommandNoPivot());
+    codriverXbox.x().onTrue(intake.stopPivotCommand());
+    codriverXbox.start().onTrue(intake.homingCommand());
+    codriverXbox.povDown().whileTrue(intake.ejectCommand()); // spit game piece out
+    codriverXbox.povUp().whileTrue(intake.agitateCommand()); // wiggle pivot to unjam
+
+    // Outreach
+    outreachXbox.leftTrigger().whileTrue(intake.intakeCommand());
   }
 
   /**
@@ -51,7 +70,6 @@ public class RobotContainer {
    * @return the command to run in autonomous
    */
   public Command getAutonomousCommand() {
-    // An example command will be run in autonomous
-    return null;
+    return Commands.none();
   }
 }
