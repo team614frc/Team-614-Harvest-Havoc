@@ -4,13 +4,13 @@
 
 package frc.robot;
 
-import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants.OperatorConstants;
-import frc.robot.commands.Autos;
-import frc.robot.commands.ExampleCommand;
-import frc.robot.subsystems.ExampleSubsystem;
+import frc.robot.subsystems.Elevator;
+import frc.robot.subsystems.Elevator.Setpoint;
 
 /**
  * This class is where the bulk of the robot should be declared. Since Command-based is a
@@ -19,12 +19,14 @@ import frc.robot.subsystems.ExampleSubsystem;
  * subsystems, commands, and trigger mappings) should be declared here.
  */
 public class RobotContainer {
-  // The robot's subsystems and commands are defined here...
-  private final ExampleSubsystem m_exampleSubsystem = new ExampleSubsystem();
+  // Subsystems
+  private final Elevator elevator = new Elevator();
 
-  // Replace with CommandPS4Controller or CommandJoystick if needed
-  private final CommandXboxController m_driverController =
-      new CommandXboxController(OperatorConstants.kDriverControllerPort);
+  private final CommandXboxController driverXbox =
+      new CommandXboxController(OperatorConstants.driverXbox);
+
+  private final CommandXboxController codriverXbox =
+      new CommandXboxController(OperatorConstants.codriverXbox);
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
@@ -42,13 +44,26 @@ public class RobotContainer {
    * joysticks}.
    */
   private void configureBindings() {
-    // Schedule `ExampleCommand` when `exampleCondition` changes to `true`
-    new Trigger(m_exampleSubsystem::exampleCondition)
-        .onTrue(new ExampleCommand(m_exampleSubsystem));
+    // Home the pivot whenever the robot is enabled in auto or teleop
 
-    // Schedule `exampleMethodCommand` when the Xbox controller's B button is pressed,
-    // cancelling on release.
-    m_driverController.b().whileTrue(m_exampleSubsystem.exampleMethodCommand());
+    // Home the elevator on the first enable after boot only (not on every re-enable, so it
+    // doesn't drop to the bottom between auto and teleop)
+    RobotModeTriggers.autonomous()
+        .or(RobotModeTriggers.teleop())
+        .and(() -> !elevator.isHomed())
+        .onTrue(elevator.homeCommand());
+
+    // Codriver - elevator setpoints
+    codriverXbox.a().onTrue(elevator.setSetpoint(Setpoint.kFeeder)); // pick up from feeder
+    codriverXbox.b().onTrue(elevator.setSetpoint(Setpoint.kL1));
+    codriverXbox.leftBumper().onTrue(elevator.setSetpoint(Setpoint.kL2));
+    codriverXbox.rightBumper().onTrue(elevator.setSetpoint(Setpoint.kL3));
+
+    // Codriver - elevator manual
+    codriverXbox.back().whileTrue(elevator.homeCommand()); // re-zero, hold until it finishes
+    codriverXbox
+        .axisMagnitudeGreaterThan(XboxController.Axis.kRightY.value, 0.1)
+        .whileTrue(elevator.jog(() -> -codriverXbox.getRightY())); // for finding setpoints
   }
 
   /**
@@ -56,8 +71,9 @@ public class RobotContainer {
    *
    * @return the command to run in autonomous
    */
+  /*
   public Command getAutonomousCommand() {
-    // An example command will be run in autonomous
-    return Autos.exampleAuto(m_exampleSubsystem);
+
   }
+  */
 }
