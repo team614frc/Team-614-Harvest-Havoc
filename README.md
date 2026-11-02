@@ -1,4 +1,4 @@
-# Team-614-Harvast-Havoc
+# Team-614-Harvest-Havoc
 Use the WPILib JDK
 
 ## Format files
