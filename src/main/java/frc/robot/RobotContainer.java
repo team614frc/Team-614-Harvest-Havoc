@@ -50,7 +50,6 @@ public class RobotContainer {
   }
 
   private void configureBindings() {
-<<<<<<< HEAD
     // Default command: drive with the sticks
     drivebase.setDefaultCommand(drivebase.driveFieldOriented(driveAngularVelocity));
 
@@ -62,23 +61,9 @@ public class RobotContainer {
 
     // B held = point-to-direction drive mode (optional, remove if you don't want it)
     driverXbox.b().whileTrue(drivebase.driveFieldOriented(driveDirectAngle));
-=======
-    // Schedule `ExampleCommand` when `exampleCondition` changes to `true`
-    new Trigger(m_exampleSubsystem::exampleCondition)
-        .onTrue(new ExampleCommand(m_exampleSubsystem));
-
-    // Schedule `exampleMethodCommand` when the Xbox controller's B button is pressed,
-    // cancelling on release.
-    m_driverController.b().whileTrue(m_exampleSubsystem.exampleMethodCommand());
->>>>>>> origin/main
   }
 
   public Command getAutonomousCommand() {
-<<<<<<< HEAD
     return Commands.none();
-=======
-    // An example command will be run in autonomous
-    return Autos.exampleAuto(m_exampleSubsystem);
->>>>>>> origin/main
   }
 }
