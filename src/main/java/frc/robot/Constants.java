@@ -4,12 +4,15 @@
 
 package frc.robot;
 
+<<<<<<< HEAD
 import static edu.wpi.first.units.Units.*;
 
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj.RobotBase;
+=======
+>>>>>>> origin/main
 /**
  * The Constants class provides a convenient place for teams to hold robot-wide numerical or boolean
  * constants. This class should not be used for any other purpose. All constants should be declared
@@ -19,11 +22,6 @@ import edu.wpi.first.wpilibj.RobotBase;
  * constants are needed, to reduce verbosity.
  */
 public final class Constants {
-  
- public static final class DrivebaseConstants {
-    public static final double MAX_SPEED = Units.feetToMeters(17.5);
-  }
-
   public static class OperatorConstants {
     public static final int driverXbox = 0;
     public static final double DEADBAND = 0.05;
