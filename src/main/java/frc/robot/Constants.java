@@ -8,6 +8,7 @@ import static edu.wpi.first.units.Units.*;
 
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.AngularVelocity;
+import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj.RobotBase;
 /**
  * The Constants class provides a convenient place for teams to hold robot-wide numerical or boolean
@@ -24,6 +25,7 @@ public final class Constants {
   }
 
   public static class OperatorConstants {
-    public static final int kDriverControllerPort = 0;
+    public static final int driverXbox = 0;
+    public static final double DEADBAND = 0.05;
   }
 }
