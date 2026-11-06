@@ -4,15 +4,12 @@
 
 package frc.robot;
 
-<<<<<<< HEAD
 import static edu.wpi.first.units.Units.*;
 
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj.RobotBase;
-=======
->>>>>>> origin/main
 /**
  * The Constants class provides a convenient place for teams to hold robot-wide numerical or boolean
  * constants. This class should not be used for any other purpose. All constants should be declared
