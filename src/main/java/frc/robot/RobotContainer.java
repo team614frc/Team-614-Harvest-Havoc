@@ -3,24 +3,11 @@ package frc.robot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-<<<<<<< HEAD
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.subsystems.Swerve;
 import swervelib.SwerveInputStream;
-=======
-import edu.wpi.first.wpilibj2.command.button.Trigger;
-import frc.robot.Constants.OperatorConstants;
-import frc.robot.commands.Autos;
-import frc.robot.commands.ExampleCommand;
-import frc.robot.subsystems.ExampleSubsystem;
->>>>>>> origin/main
 
 public class RobotContainer {
-<<<<<<< HEAD
-=======
-  // The robot's subsystems and commands are defined here...
-  private final ExampleSubsystem m_exampleSubsystem = new ExampleSubsystem();
->>>>>>> origin/main
 
   private final Swerve drivebase = new Swerve();
 
