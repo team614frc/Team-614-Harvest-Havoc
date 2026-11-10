@@ -11,17 +11,16 @@ import swervelib.SwerveInputStream;
 
 public class RobotContainer {
 
-private static final double MANIPULATOR_SPEED_DEG_PER_SEC = 5.0;
-
+  private static final double MANIPULATOR_SPEED_DEG_PER_SEC = 3.0;
 
   private final Swerve drivebase = new Swerve();
   private final ManipulatorSubsystem manipulator = new ManipulatorSubsystem();
 
-  private final CommandXboxController driverXbox = 
-    new CommandXboxController(OperatorConstants.DRIVER_CONTROLLER_PORT);
-  
+  private final CommandXboxController driverXbox =
+      new CommandXboxController(OperatorConstants.DRIVER_CONTROLLER_PORT);
+
   private final CommandXboxController codriverXbox =
-    new CommandXboxController(OperatorConstants.CODRIVER_CONTROLLER_PORT);
+      new CommandXboxController(OperatorConstants.CODRIVER_CONTROLLER_PORT);
 
   /** Field-relative drive, rotation controlled by the right stick. */
   private final SwerveInputStream driveAngularVelocity =
@@ -63,14 +62,12 @@ private static final double MANIPULATOR_SPEED_DEG_PER_SEC = 5.0;
     manipulator.setDefaultCommand(
         manipulator.manual(
             () -> MathUtil.applyDeadband(-codriverXbox.getRightY(), OperatorConstants.DEADBAND)));
- 
+
     // ---------------- Codriver: manipulator ----------------
-    // B held = manipulator up, A held = manipulator down. Manipulator holds its position when the button is released.
+    // B held = manipulator up, A held = manipulator down. Manipulator holds its position when the
+    // button is released.
     codriverXbox.b().whileTrue(manipulator.nudge(MANIPULATOR_SPEED_DEG_PER_SEC));
     codriverXbox.a().whileTrue(manipulator.nudge(-MANIPULATOR_SPEED_DEG_PER_SEC));
-
-
-
   }
 
   public Command getAutonomousCommand() {

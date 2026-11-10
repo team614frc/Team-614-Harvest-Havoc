@@ -16,7 +16,6 @@ import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.signals.StaticFeedforwardSignValue;
 import com.ctre.phoenix6.sim.TalonFXSimState;
-
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Angle;
@@ -34,15 +33,15 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.ManipulatorConstants;
 import frc.robot.Ports;
+
 /**
  * Single-jointed manipulator driven by two Kraken X44 motors (TalonFX, Phoenix 6).
  *
- * Conventions:
- *  - Angle 0 = manipulator horizontal (parallel to ground), positive = up.
- *  - All TalonFX closed-loop units are MECHANISM rotations (SensorToMechanismRatio handles gearing).
- *  - Gravity feedforward uses Arm_Cosine, which requires 0 = horizontal.
+ * <p>Conventions: - Angle 0 = manipulator horizontal (parallel to ground), positive = up. - All
+ * TalonFX closed-loop units are MECHANISM rotations (SensorToMechanismRatio handles gearing). -
+ * Gravity feedforward uses Arm_Cosine, which requires 0 = horizontal.
  *
- * TUNE EVERYTHING in ManipulatorConstants before running on a real robot.
+ * <p>TUNE EVERYTHING in ManipulatorConstants before running on a real robot.
  */
 public class ManipulatorSubsystem extends SubsystemBase {
 
@@ -67,7 +66,8 @@ public class ManipulatorSubsystem extends SubsystemBase {
       new SingleJointedArmSim(
           DCMotor.getKrakenX44(2),
           ManipulatorConstants.GEAR_RATIO,
-          SingleJointedArmSim.estimateMOI(ManipulatorConstants.MANIPULATOR_LENGTH_M, ManipulatorConstants.MANIPULATOR_MASS_KG),
+          SingleJointedArmSim.estimateMOI(
+              ManipulatorConstants.MANIPULATOR_LENGTH_M, ManipulatorConstants.MANIPULATOR_MASS_KG),
           ManipulatorConstants.MANIPULATOR_LENGTH_M,
           Units.degreesToRadians(ManipulatorConstants.MIN_ANGLE_DEG),
           Units.degreesToRadians(ManipulatorConstants.MAX_ANGLE_DEG),
@@ -78,7 +78,12 @@ public class ManipulatorSubsystem extends SubsystemBase {
   private final MechanismRoot2d root = mech.getRoot("ManipulatorPivot", 1, 0.5);
   private final MechanismLigament2d manipulatorLigament =
       root.append(
-          new MechanismLigament2d("Manipulator", ManipulatorConstants.MANIPULATOR_LENGTH_M, 0, 6, new Color8Bit(0, 150, 255)));
+          new MechanismLigament2d(
+              "Manipulator",
+              ManipulatorConstants.MANIPULATOR_LENGTH_M,
+              0,
+              6,
+              new Color8Bit(0, 150, 255)));
 
   //  Setup
   public ManipulatorSubsystem() {
@@ -121,7 +126,7 @@ public class ManipulatorSubsystem extends SubsystemBase {
     cfg.SoftwareLimitSwitch.ReverseSoftLimitThreshold =
         Units.degreesToRotations(ManipulatorConstants.MIN_ANGLE_DEG);
 
-    // PID + feedforward
+    // PID + feedforward delete this
     cfg.Slot0.kP = ManipulatorConstants.kP;
     cfg.Slot0.kI = ManipulatorConstants.kI;
     cfg.Slot0.kD = ManipulatorConstants.kD;
@@ -170,13 +175,16 @@ public class ManipulatorSubsystem extends SubsystemBase {
   }
 
   public boolean atTarget() {
-    return Math.abs(getAngle().in(Degrees) - targetAngle.in(Degrees)) < ManipulatorConstants.TOLERANCE_DEG;
+    return Math.abs(getAngle().in(Degrees) - targetAngle.in(Degrees))
+        < ManipulatorConstants.TOLERANCE_DEG;
   }
 
   /** Move to a position using Motion Magic. */
   public void setAngle(Angle angle) {
     double clampedDeg =
-        Math.max(ManipulatorConstants.MIN_ANGLE_DEG, Math.min(ManipulatorConstants.MAX_ANGLE_DEG, angle.in(Degrees)));
+        Math.max(
+            ManipulatorConstants.MIN_ANGLE_DEG,
+            Math.min(ManipulatorConstants.MAX_ANGLE_DEG, angle.in(Degrees)));
     targetAngle = Degrees.of(clampedDeg);
     leader.setControl(positionRequest.withPosition(targetAngle));
   }
@@ -222,8 +230,8 @@ public class ManipulatorSubsystem extends SubsystemBase {
   }
 
   /**
-   * Move the setpoint at a constant rate (deg/sec) while running, then hold wherever the manipulator is
-   * when the command ends (e.g. button released). Positive = up.
+   * Move the setpoint at a constant rate (deg/sec) while running, then hold wherever the
+   * manipulator is when the command ends (e.g. button released). Positive = up.
    */
   public Command nudge(double degPerSec) {
     return run(() -> setAngle(Degrees.of(targetAngle.in(Degrees) + degPerSec * 0.020)))
