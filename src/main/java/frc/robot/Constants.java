@@ -4,8 +4,6 @@
 
 package frc.robot;
 
-import static edu.wpi.first.units.Units.*;
-
 import edu.wpi.first.math.util.Units;
 
 /**
@@ -18,11 +16,11 @@ import edu.wpi.first.math.util.Units;
  */
 public final class Constants {
   public static class OperatorConstants {
-    public static final int driverXbox = 0;
+    public static final int DRIVER_CONTROLLER_PORT = 0;
     public static final double DEADBAND = 0.05;
   }
 
   public static class DrivebaseConstants {
-    public static final double MAX_SPEED = Units.feetToMeters(4.5); // 4.5 m/s
+    public static final double MAX_SPEED = Units.feetToMeters(17.5); // 17.5 ft/s
   }
 }
