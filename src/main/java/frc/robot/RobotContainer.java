@@ -12,7 +12,7 @@ public class RobotContainer {
   private final Swerve drivebase = new Swerve();
 
   private final CommandXboxController driverXbox =
-      new CommandXboxController(OperatorConstants.driverXbox);
+      new CommandXboxController(OperatorConstants.DRIVER_CONTROLLER_PORT);
 
   /** Field-relative drive, rotation controlled by the right stick. */
   private final SwerveInputStream driveAngularVelocity =
