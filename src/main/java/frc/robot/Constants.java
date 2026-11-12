@@ -6,7 +6,6 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.Amps;
 import static edu.wpi.first.units.Units.RPM;
-import static edu.wpi.first.units.Units.RotationsPerSecond;
 
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.AngularVelocity;
@@ -31,7 +30,7 @@ public final class Constants {
     public static final double MAX_SPEED = Units.feetToMeters(17.5); // 17.5 ft/s
   }
 
-    public static class KrakenX44 {
+  public static class KrakenX44 {
     public static final AngularVelocity kFreeSpeed = RPM.of(7530);
   }
 
@@ -42,11 +41,11 @@ public final class Constants {
     public static final boolean ELEVATOR_FOLLOWER_OPPOSES_LEADER = false; // TODO
     // Flip if the elevator goes DOWN when the stick is pushed UP
     public static final boolean ELEVATOR_INVERTED = false; // TODO
- 
+
     // ---- Current limits
     public static final Current ELEVATOR_STATOR_CURRENT_LIMIT = Amps.of(60);
     public static final Current ELEVATOR_SUPPLY_CURRENT_LIMIT = Amps.of(40);
- 
+
     // ---- Manual control (co-driver stick). These are VOLTS.
     // They can also be changed live on the dashboard, then copied here.
     public static final double ELEVATOR_MANUAL_UP_VOLTS = 2.0; // full stick up (start low!)
@@ -54,13 +53,14 @@ public final class Constants {
     public static final double ELEVATOR_HOLD_VOLTS = 0.0; // TODO: volts that keep it from sagging
     public static final double ELEVATOR_MANUAL_DEADBAND = 0.1;
     public static final double ELEVATOR_MANUAL_RAMP = 12.0; // volts per second (smooths stick)
- 
+
     // Caps on the live dashboard values, so a typo cannot send full power
     public static final double ELEVATOR_MAX_MANUAL_VOLTS = 5.0;
     public static final double ELEVATOR_MAX_HOLD_VOLTS = 2.0;
- 
+
     // ---- Travel limits (motor rotations above the bottom stop)
     public static final double ELEVATOR_MIN_POSITION = 0.0;
+
     /**
      * Highest SAFE position, a bit below the real top hard stop. PLACEHOLDER: find the real value
      * by driving up slowly and reading "Elevator Actual Position" on the dashboard.
