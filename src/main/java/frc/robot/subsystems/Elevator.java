@@ -21,6 +21,7 @@ import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.ElevatorConstants;
 import frc.robot.Ports;
@@ -29,9 +30,10 @@ import java.util.function.DoubleSupplier;
 /**
  * Manually driven elevator: one or two Kraken X44s (TalonFX) controlled by the co-driver stick.
  *
- * <p>The elevator must START at the bottom stop when the code starts, because that is where
- * position zero is assumed to be. If the code restarts anywhere else, lower the carriage onto the
- * bottom stop and press the zero button (zeroHere).
+ * <p>Position zero is the bottom stop. The motor reads 0 when it is powered on, so the elevator
+ * must START at the bottom after every power cycle. The position is NOT reset when only the robot
+ * code restarts, so a code crash or redeploy does not lose it. After a power cycle (or brownout)
+ * with the carriage up, lower it onto the bottom stop and press the zero button (zeroHere).
  */
 public class Elevator extends SubsystemBase {
 
@@ -72,8 +74,7 @@ public class Elevator extends SubsystemBase {
                   : MotorAlignmentValue.Aligned));
     }
 
-    // Assume the elevator starts at the bottom, so this is zero.
-    elevatorLeader.setPosition(ElevatorConstants.ELEVATOR_MIN_POSITION);
+    // Note: position is deliberately NOT reset here (see the class comment).
 
     // Live-adjustable on the dashboard (clamped in manualControl)
     SmartDashboard.putNumber(kUpKey, ElevatorConstants.ELEVATOR_MANUAL_UP_VOLTS);
@@ -87,6 +88,8 @@ public class Elevator extends SubsystemBase {
         ElevatorConstants.ELEVATOR_INVERTED
             ? InvertedValue.Clockwise_Positive
             : InvertedValue.CounterClockwise_Positive;
+    // Gear ratio: positions are in output-shaft rotations, not motor rotations.
+    config.Feedback.SensorToMechanismRatio = ElevatorConstants.ELEVATOR_GEAR_RATIO;
 
     config.CurrentLimits.StatorCurrentLimit =
         ElevatorConstants.ELEVATOR_STATOR_CURRENT_LIMIT.in(Amps);
@@ -95,13 +98,13 @@ public class Elevator extends SubsystemBase {
         ElevatorConstants.ELEVATOR_SUPPLY_CURRENT_LIMIT.in(Amps);
     config.CurrentLimits.SupplyCurrentLimitEnable = true;
 
-    // Top soft limit is ON from boot (we assume we start at the bottom), so the stick cannot drive
-    // the carriage into the top. The bottom limit stays off until zeroHere() is pressed, so a
-    // wrong zero can never trap the carriage up high.
+    // Soft limits. Thresholds are set for both, but only the TOP limit is switched on at boot.
+    // The bottom limit stays OFF until zeroHere() is pressed, so a wrong zero can never trap the
+    // carriage up high.
     config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = ElevatorConstants.ELEVATOR_MAX_POSITION;
     config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = ElevatorConstants.ELEVATOR_MIN_POSITION;
-    config.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
-    config.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
+    config.SoftwareLimitSwitch.ForwardSoftLimitEnable = true; // top limit ON
+    config.SoftwareLimitSwitch.ReverseSoftLimitEnable = false; // bottom limit OFF until zeroed
   }
 
   private void applyConfig(TalonFX motor) {
@@ -151,16 +154,23 @@ public class Elevator extends SubsystemBase {
               elevatorLeader.setControl(voltageOut.withOutput(limiter.calculate(volts)));
             },
             () -> elevatorLeader.stopMotor())
-        .beforeStarting(() -> limiter.reset(ElevatorConstants.ELEVATOR_HOLD_VOLTS))
+        .beforeStarting(
+            () ->
+                limiter.reset(
+                    tunable(
+                        kHoldKey,
+                        ElevatorConstants.ELEVATOR_HOLD_VOLTS,
+                        ElevatorConstants.ELEVATOR_MAX_HOLD_VOLTS)))
         .withName("Elevator Manual");
   }
 
   /**
    * Declares the current position to be the bottom (zero) and turns on the bottom soft limit. Only
-   * press this with the carriage resting on the bottom stop. Works while disabled.
+   * press this with the carriage resting on the bottom stop. Works while disabled. It does not
+   * require the subsystem, so the stick keeps working while it runs.
    */
   public Command zeroHere() {
-    return this.runOnce(
+    return Commands.runOnce(
             () -> {
               elevatorLeader.setPosition(ElevatorConstants.ELEVATOR_MIN_POSITION);
               config.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;

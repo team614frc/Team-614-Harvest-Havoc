@@ -5,10 +5,8 @@
 package frc.robot;
 
 import static edu.wpi.first.units.Units.Amps;
-import static edu.wpi.first.units.Units.RPM;
 
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 
 /**
@@ -30,15 +28,11 @@ public final class Constants {
     public static final double MAX_SPEED = Units.feetToMeters(17.5); // 17.5 ft/s
   }
 
-  public static class KrakenX44 {
-    public static final AngularVelocity kFreeSpeed = RPM.of(7530);
-  }
-
   public static class ElevatorConstants {
     // ---- Wiring / direction
-    public static final boolean ELEVATOR_HAS_FOLLOWER = false; // TODO: false if only one motor
+    public static final boolean ELEVATOR_HAS_FOLLOWER = true; // TODO: false if only one motor
     // false = follower spins same way as leader, true = opposite (motors facing each other)
-    public static final boolean ELEVATOR_FOLLOWER_OPPOSES_LEADER = false; // TODO
+    public static final boolean ELEVATOR_FOLLOWER_OPPOSES_LEADER = true; // TODO
     // Flip if the elevator goes DOWN when the stick is pushed UP
     public static final boolean ELEVATOR_INVERTED = false; // TODO
 
@@ -57,6 +51,10 @@ public final class Constants {
     // Caps on the live dashboard values, so a typo cannot send full power
     public static final double ELEVATOR_MAX_MANUAL_VOLTS = 5.0;
     public static final double ELEVATOR_MAX_HOLD_VOLTS = 2.0;
+
+    // Motor turns per turn of the output shaft (20:1 gearbox). Positions below are in OUTPUT
+    // shaft rotations, not motor rotations.
+    public static final double ELEVATOR_GEAR_RATIO = 20.0;
 
     // ---- Travel limits (motor rotations above the bottom stop)
     public static final double ELEVATOR_MIN_POSITION = 0.0;
