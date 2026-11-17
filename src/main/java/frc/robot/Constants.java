@@ -16,6 +16,7 @@ import static edu.wpi.first.units.Units.Second;
 import static edu.wpi.first.units.Units.Seconds;
 import static edu.wpi.first.units.Units.Volts;
 
+import com.ctre.phoenix6.signals.InvertedValue;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularAcceleration;
@@ -44,6 +45,18 @@ public final class Constants {
 
   public static class DrivebaseConstants {
     public static final double MAX_SPEED = Units.feetToMeters(17.5); // 17.5 ft/s
+  }
+
+  public static class ManipulatorConstants {
+    public static final InvertedValue MOTOR_INVERTED = InvertedValue.CounterClockwise_Positive;
+    public static final double STATOR_CURRENT_LIMIT = 40.0; // Amps
+    public static final double SUPPLY_CURRENT_LIMIT = 40.0; // Amps
+    public static final double INTAKE_SPEED = 0.05;
+    public static final double OUTTAKE_SPEED = -0.05;
+    public static final double REST_SPEED = 0;
+    public static final double MIN_OUTPUT = 0.1; // amps
+    public static final double MIN_CURRENT = 20.0; // amps
+    public static final double GAME_PIECE_DEBOUNCE_SECONDS = 0.1; // seconds
   }
 
   public static class ElevatorConstants {
