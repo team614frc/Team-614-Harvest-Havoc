@@ -10,14 +10,17 @@ import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.Follower;
+import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -41,6 +44,7 @@ public class Elevator extends SubsystemBase {
   private static final String kUpKey = "Elevator Manual Up Volts";
   private static final String kDownKey = "Elevator Manual Down Volts";
   private static final String kHoldKey = "Elevator Hold Volts";
+  private static final String kTestKey = "Elevator Test Target";
 
   // Motors
   private final TalonFX elevatorLeader = new TalonFX(Ports.kElevatorLeader, Ports.kRoboRioCANBus);
@@ -51,9 +55,12 @@ public class Elevator extends SubsystemBase {
 
   private final TalonFXConfiguration config = new TalonFXConfiguration();
   private final StatusSignal<Angle> position = elevatorLeader.getPosition();
+  private final StatusSignal<AngularVelocity> velocity = elevatorLeader.getVelocity();
 
   // FOC off because it needs a Phoenix Pro license
   private final VoltageOut voltageOut = new VoltageOut(0).withEnableFOC(false);
+  private final MotionMagicVoltage motionMagic =
+      new MotionMagicVoltage(0).withSlot(0).withEnableFOC(false);
 
   // Smooths the stick so the elevator never gets a sudden jolt
   private final SlewRateLimiter limiter =
@@ -98,6 +105,26 @@ public class Elevator extends SubsystemBase {
         ElevatorConstants.ELEVATOR_SUPPLY_CURRENT_LIMIT.in(Amps);
     config.CurrentLimits.SupplyCurrentLimitEnable = true;
 
+    // Cap the voltage the motor can ever be told to use, in both directions, whatever is
+    // commanding it (stick or Motion Magic). Untuned gains cannot push harder than this.
+    config.Voltage.PeakForwardVoltage = ElevatorConstants.ELEVATOR_MAX_MANUAL_VOLTS;
+    config.Voltage.PeakReverseVoltage = -ElevatorConstants.ELEVATOR_MAX_MANUAL_VOLTS;
+
+    // Gains (slot 0), used by Motion Magic. Elevator_Static: gravity pulls with a constant force.
+    config.Slot0.GravityType = GravityTypeValue.Elevator_Static;
+    config.Slot0.kP = ElevatorConstants.kP;
+    config.Slot0.kI = ElevatorConstants.kI;
+    config.Slot0.kD = ElevatorConstants.kD;
+    config.Slot0.kS = ElevatorConstants.kS;
+    config.Slot0.kV = ElevatorConstants.kV;
+    config.Slot0.kA = ElevatorConstants.kA;
+    config.Slot0.kG = ElevatorConstants.kG;
+
+    // Motion Magic profile (jerk 0 = simple trapezoid: speed up, cruise, slow down)
+    config.MotionMagic.MotionMagicCruiseVelocity = ElevatorConstants.ELEVATOR_MAX_VELOCITY;
+    config.MotionMagic.MotionMagicAcceleration = ElevatorConstants.ELEVATOR_MAX_ACCELERATION;
+    config.MotionMagic.MotionMagicJerk = 0;
+
     // Soft limits. Thresholds are set for both, but only the TOP limit is switched on at boot.
     // The bottom limit stays OFF until zeroHere() is pressed, so a wrong zero can never trap the
     // carriage up high.
@@ -121,6 +148,15 @@ public class Elevator extends SubsystemBase {
   /** Reads a dashboard number, limited to 0..max so a typo cannot send full power. */
   private static double tunable(String key, double fallback, double max) {
     return MathUtil.clamp(SmartDashboard.getNumber(key, fallback), 0, max);
+  }
+
+  private double holdVolts() {
+    return tunable(
+        kHoldKey, ElevatorConstants.ELEVATOR_HOLD_VOLTS, ElevatorConstants.ELEVATOR_MAX_HOLD_VOLTS);
+  }
+
+  private double getElevatorPosition() {
+    return position.getValueAsDouble();
   }
 
   /**
@@ -180,8 +216,77 @@ public class Elevator extends SubsystemBase {
         .withName("Elevator Zero Here");
   }
 
+  // ------------------------------------------------------------------ Setpoints (Motion Magic)
+
+  /** Moves down to the bottom to pick something up. */
+  public Command goToPickup() {
+    return goToPosition(ElevatorConstants.ELEVATOR_PICKUP_SETPOINT).withName("Elevator Pickup");
+  }
+
+  /** Moves up to the top. Blocked until the real top position has been measured and entered. */
+  public Command goToTop() {
+    if (!ElevatorConstants.ELEVATOR_MAX_POSITION_VERIFIED) {
+      return Commands.runOnce(
+              () ->
+                  DriverStation.reportError(
+                      "Elevator: top setpoint blocked. Measure the real top, set"
+                          + " ELEVATOR_MAX_POSITION, then set ELEVATOR_MAX_POSITION_VERIFIED.",
+                      false))
+          .withName("Elevator Top (blocked)");
+    }
+    return goToPosition(ElevatorConstants.ELEVATOR_TOP_SETPOINT).withName("Elevator Top");
+  }
+
+  /** Moves to level 1. */
+  public Command goToL1() {
+    return goToLevel(ElevatorConstants.ELEVATOR_L1_SETPOINT).withName("Elevator L1");
+  }
+
+  /** Moves to level 2. */
+  public Command goToL2() {
+    return goToLevel(ElevatorConstants.ELEVATOR_L2_SETPOINT).withName("Elevator L2");
+  }
+
+  /** Moves to level 3. */
+  public Command goToL3() {
+    return goToLevel(ElevatorConstants.ELEVATOR_L3_SETPOINT).withName("Elevator L3");
+  }
+
+  /** Same as goToPosition, but the target is clamped to the legal travel range first. */
+  private Command goToLevel(double target) {
+    return goToPosition(
+        MathUtil.clamp(
+            target,
+            ElevatorConstants.ELEVATOR_MIN_POSITION,
+            ElevatorConstants.ELEVATOR_MAX_POSITION));
+  }
+
+  /**
+   * Sends the motor a Motion Magic request: the motor controller builds a smooth move (speed up,
+   * cruise, slow down) and holds the target. This command finishes when the carriage arrives or
+   * after a timeout, then hands back to the stick (manual hold voltage). The soft limits and the
+   * peak voltage cap still protect the elevator.
+   */
+  /** Moves to the dashboard "Elevator Test Target" (clamped to the legal travel range). */
+  private Command goToPosition(double target) {
+    return goToPosition(() -> target);
+  }
+
+  private Command goToPosition(DoubleSupplier target) {
+    return this.runEnd(
+            () -> elevatorLeader.setControl(motionMagic.withPosition(target.getAsDouble())),
+            () -> elevatorLeader.setControl(voltageOut.withOutput(holdVolts())))
+        .until(
+            () ->
+                Math.abs(target.getAsDouble() - getElevatorPosition())
+                    <= ElevatorConstants.ELEVATOR_TOLERANCE)
+        .withTimeout(ElevatorConstants.ELEVATOR_SETPOINT_TIMEOUT);
+  }
+
   @Override
   public void periodic() {
     SmartDashboard.putNumber("Elevator Actual Position", position.refresh().getValueAsDouble());
+    SmartDashboard.putNumber("Elevator Actual Position", position.refresh().getValueAsDouble());
+    SmartDashboard.putNumber("Elevator Velocity (rps)", velocity.refresh().getValueAsDouble());
   }
 }

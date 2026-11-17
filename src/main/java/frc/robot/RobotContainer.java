@@ -1,5 +1,7 @@
 package frc.robot;
 
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser; // NEW
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard; // NEW
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -21,6 +23,9 @@ public class RobotContainer {
   private final CommandXboxController codriverXbox =
       new CommandXboxController(OperatorConstants.CODRIVER_CONTROLLER_PORT);
 
+  // NEW: the list of autos shown on the dashboard
+  private final SendableChooser<Command> autoChooser = new SendableChooser<>();
+
   /** Field-relative drive, rotation controlled by the right stick. */
   private final SwerveInputStream driveAngularVelocity =
       SwerveInputStream.of(
@@ -41,6 +46,7 @@ public class RobotContainer {
 
   public RobotContainer() {
     configureBindings();
+    configureAutos(); // NEW
   }
 
   private void configureBindings() {
@@ -63,6 +69,32 @@ public class RobotContainer {
     // Back = declare the current position as the bottom. Only press this with the carriage
     // resting on the bottom stop (works while disabled too).
     codriverXbox.back().onTrue(elevator.zeroHere());
+    // Codriver - elevator setpoints (HOLD the button; releasing it cancels and returns to stick)
+    codriverXbox.a().whileTrue(elevator.goToPickup()); // bottom
+    codriverXbox.b().whileTrue(elevator.goToL1());
+    codriverXbox.x().whileTrue(elevator.goToL2());
+    codriverXbox.y().whileTrue(elevator.goToL3());
+  }
+
+  // NEW: the autos you can pick on the dashboard before enabling Autonomous
+  private void configureAutos() {
+    autoChooser.setDefaultOption("Do Nothing", Commands.none());
+    autoChooser.addOption("Elevator: Pickup (bottom)", elevator.goToPickup());
+    autoChooser.addOption("Elevator: Top", elevator.goToTop());
+    autoChooser.addOption("Elevator: L1", elevator.goToL1());
+    autoChooser.addOption("Elevator: L2", elevator.goToL2());
+    autoChooser.addOption("Elevator: L3", elevator.goToL3());
+
+    autoChooser.addOption(
+        "Elevator: Pickup then Top",
+        Commands.sequence(
+            elevator.goToPickup(),
+            Commands.waitSeconds(1.0), // pretend to pick something up
+            elevator.goToTop()));
+    SmartDashboard.putData("Auto Chooser", autoChooser);
+    SmartDashboard.putData("Elevator L1", elevator.goToL1());
+    SmartDashboard.putData("Elevator L2", elevator.goToL2());
+    SmartDashboard.putData("Elevator L3", elevator.goToL3());
   }
 
   /**
@@ -71,6 +103,6 @@ public class RobotContainer {
    * @return the command to run in autonomous
    */
   public Command getAutonomousCommand() {
-    return Commands.none();
+    return autoChooser.getSelected(); // CHANGED: was Commands.none()
   }
 }
