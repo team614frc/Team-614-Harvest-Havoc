@@ -7,6 +7,6 @@ public final class Ports {
   public static final CANBus kRoboRioCANBus = new CANBus("rio");
 
   // Talon FX IDs
-  public static final int kElevatorLeader = 20;
-  public static final int kElevatorFollower = 21;
+  public static final int kElevatorLeader = 10;
+  public static final int kElevatorFollower = 11;
 }

@@ -7,7 +7,13 @@ package frc.robot;
 import static edu.wpi.first.units.Units.*;
 
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
+import edu.wpi.first.units.measure.Distance;
+import edu.wpi.first.units.measure.LinearAcceleration;
+import edu.wpi.first.units.measure.LinearVelocity;
+import edu.wpi.first.units.measure.Time;
+import edu.wpi.first.units.measure.Voltage;
 
 /**
  * The Constants class provides a convenient place for teams to hold robot-wide numerical or boolean
@@ -30,81 +36,87 @@ public final class Constants {
 
   public static class ElevatorConstants {
     // ---- Wiring / direction
-    public static final boolean ELEVATOR_HAS_FOLLOWER =
-        true; // false only for one-motor bench tests
+    public static final boolean HAS_FOLLOWER = true; // false only for one-motor bench tests
     // false = follower spins same way as leader, true = opposite (motors facing each other)
-    public static final boolean ELEVATOR_FOLLOWER_OPPOSES_LEADER = true; // verify on blocks
+    public static final boolean FOLLOWER_OPPOSES_LEADER = true; // verify on blocks
     // Flip if the elevator goes DOWN when the stick is pushed UP
-    public static final boolean ELEVATOR_INVERTED = true; // verify on blocks
+    public static final boolean INVERTED = false; // verify on blocks
 
-    // ---- Units
-    // Motor turns per turn of the output shaft (20:1 gearbox). All positions and speeds below
-    // are in OUTPUT shaft rotations, not motor rotations.
-    public static final double ELEVATOR_GEAR_RATIO = 20.0;
+    // ---- Mechanism
+    // Motor turns per turn of the output shaft (20:1 gearbox). Dimensionless.
+    public static final double GEAR_RATIO = 20.0;
+    // Radius of the drum the cable/chain wraps on. Height <-> rotations conversion uses this.
+    // If the elevator is cascade/continuous rigged, use the EFFECTIVE radius (carriage travel
+    // per spool turn / 2*pi).
+    public static final Distance SPOOL_RADIUS = Inches.of(0.75); // TODO measure
 
     // ---- Current limits
-    public static final Current ELEVATOR_STATOR_CURRENT_LIMIT = Amps.of(60);
-    public static final Current ELEVATOR_SUPPLY_CURRENT_LIMIT = Amps.of(40);
+    public static final Current STATOR_CURRENT_LIMIT = Amps.of(60);
+    public static final Current SUPPLY_CURRENT_LIMIT = Amps.of(40);
 
-    // ---- Manual control (co-driver stick). These are VOLTS.
-    // They can also be changed live on the dashboard, then copied here.
-    public static final double ELEVATOR_MANUAL_UP_VOLTS = 2.0; // full stick up (start low!)
-    public static final double ELEVATOR_MANUAL_DOWN_VOLTS = 1.0; // full stick down (gravity helps)
-    public static final double ELEVATOR_HOLD_VOLTS = 0.0; // TODO: volts that keep it from sagging
-    public static final double ELEVATOR_MANUAL_DEADBAND = 0.1;
-    public static final double ELEVATOR_MANUAL_RAMP = 12.0; // volts per second (smooths stick)
+    // ---- Manual control (co-driver stick)
+    // They can also be changed live on the dashboard (in volts), then copied here.
+    public static final Voltage MANUAL_UP = Volts.of(2.0); // full stick up (start low!)
+    public static final Voltage MANUAL_DOWN = Volts.of(1.0); // full stick down (gravity helps)
+    public static final Voltage HOLD = Volts.of(0.0); // TODO: volts that keep it from sagging
+    public static final double MANUAL_DEADBAND = 0.1; // stick fraction, dimensionless
+    // SlewRateLimiter only takes a raw double, so the unit is in the name.
+    public static final double MANUAL_RAMP_VOLTS_PER_SEC = 12.0;
 
     // Caps on the live dashboard values and on the motor's peak voltage, so nothing can ever send
     // full power
-    public static final double ELEVATOR_MAX_MANUAL_VOLTS = 5.0;
-    public static final double ELEVATOR_MAX_HOLD_VOLTS = 2.0;
+    public static final Voltage MAX_MANUAL = Volts.of(5.0);
+    public static final Voltage MAX_HOLD = Volts.of(2.0);
 
-    // ---- Travel limits (output shaft rotations above the bottom stop)
-    public static final double ELEVATOR_MIN_POSITION = 0.0;
+    // ---- Travel limits (height above the bottom stop)
+    public static final Distance MIN_HEIGHT = Inches.of(0);
 
     /**
-     * Highest SAFE position, a bit below the real top hard stop. The top soft limit uses this.
-     * PLACEHOLDER: find the real value by driving up slowly and reading "Elevator Actual Position"
-     * on the dashboard.
+     * Highest SAFE height, a bit below the real top hard stop. The top soft limit uses this.
+     * PLACEHOLDER: keep small until measured. Find the real value by driving up slowly and reading
+     * "Elevator Height (in)" on the dashboard, then check it with a tape measure.
      */
-    public static final double ELEVATOR_MAX_POSITION = 10.0; // TODO
+    public static final Distance MAX_HEIGHT = Inches.of(2); // TODO measure
 
-    // ---- Setpoints (used by the auto commands)
-    // Bottom = where the elevator picks something up.
-    public static final double ELEVATOR_PICKUP_SETPOINT = ELEVATOR_MIN_POSITION;
+    // ---- Setpoints (keep them below MAX_HEIGHT, they are clamped to it)
+    public static final Distance PICKUP = MIN_HEIGHT;
+    public static final Distance L1 = Inches.of(0.5); // TODO measure
+    public static final Distance L2 = Inches.of(1.0); // TODO measure
+    public static final Distance L3 = Inches.of(1.5); // TODO measure
     // Top sits a little below the top soft limit, so it never pushes into the limit.
-    public static final double ELEVATOR_TOP_MARGIN = 0.05;
-    public static final double ELEVATOR_TOP_SETPOINT = ELEVATOR_MAX_POSITION - ELEVATOR_TOP_MARGIN;
+    public static final Distance TOP_MARGIN = Inches.of(0.25);
+    public static final Distance TOP = MAX_HEIGHT.minus(TOP_MARGIN);
+    // Default for the dashboard "Elevator Test Target (in)"
+    public static final Distance TEST_SETPOINT = Inches.of(1.0);
 
     // SAFETY: the top setpoint is blocked until this is true. Set it to true ONLY after
-    // ELEVATOR_MAX_POSITION is the real, measured value (a bit below the top hard stop).
-    public static final boolean ELEVATOR_MAX_POSITION_VERIFIED = true; // TODO
+    // MAX_HEIGHT is the real, measured value (a bit below the top hard stop).
+    public static final boolean MAX_HEIGHT_VERIFIED = false; // TODO
 
-    // How close counts as "arrived" (output shaft rotations)
-    public static final double ELEVATOR_TOLERANCE = 0.03;
+    // How close counts as "arrived"
+    public static final Distance TOLERANCE = Inches.of(0.25);
     // Give up (and just hold) if it has not arrived by then.
-    public static final double ELEVATOR_SETPOINT_TIMEOUT = 15.0; // s
+    public static final Time SETPOINT_TIMEOUT = Seconds.of(15);
 
     // ---- Motion Magic (CTRE motion-profiled position control, runs on the motor)
-    // Kraken X44 free speed (7530 RPM = 125.5 rot/s). Only used for the starting guesses below.
-    private static final double MOTOR_FREE_SPEED_RPS = 125.5;
-    private static final double MAX_OUTPUT_RPS = MOTOR_FREE_SPEED_RPS / ELEVATOR_GEAR_RATIO;
+    // Kraken X44 free speed. Only used for the starting guess for kV below.
+    private static final AngularVelocity MOTOR_FREE_SPEED = RPM.of(7530);
+    private static final double MAX_OUTPUT_RPS =
+        MOTOR_FREE_SPEED.in(RotationsPerSecond) / GEAR_RATIO;
 
-    // Gains. UNTUNED starting values: tune in Phoenix Tuner X, then paste the final numbers here.
+    // Gains. These stay raw doubles because Phoenix wants them in volts per OUTPUT-SHAFT
+    // rotation (kP), volts per rot/s (kV), volts per rot/s^2 (kA), and volts (kS, kG).
+    // UNTUNED starting values: tune in Phoenix Tuner X, then paste the final numbers here.
     public static final double kP = 6.0; // volts per rotation of error (lower if it shakes)
     public static final double kI = 0;
     public static final double kD = 0;
     public static final double kS = 0.0; // volts to just start moving (raise if it stalls short)
-    public static final double kG = ELEVATOR_HOLD_VOLTS; // volts to hold against gravity
+    public static final double kG = HOLD.in(Volts); // volts to hold against gravity
     public static final double kV = 12.0 / MAX_OUTPUT_RPS; // theoretical starting guess
     public static final double kA = 0;
 
-    // Profile limits. Deliberately slow to start: about 15% of top speed.
-    public static final double ELEVATOR_MAX_VELOCITY = 0.5 * MAX_OUTPUT_RPS; // rot/s
-    public static final double ELEVATOR_MAX_ACCELERATION = .10 * ELEVATOR_MAX_VELOCITY; // rot/s^2
-
-    public static final double ELEVATOR_L1_SETPOINT = 2.0; // TODO
-    public static final double ELEVATOR_L2_SETPOINT = 5.0; // TODO
-    public static final double ELEVATOR_L3_SETPOINT = 8.0; // TODO  }
+    // Profile limits, in carriage height per second. Deliberately slow to start.
+    public static final LinearVelocity MAX_VELOCITY = InchesPerSecond.of(10);
+    public static final LinearAcceleration MAX_ACCEL = InchesPerSecond.per(Second).of(20);
   }
 }
