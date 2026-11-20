@@ -16,6 +16,10 @@ import static edu.wpi.first.units.Units.Second;
 import static edu.wpi.first.units.Units.Seconds;
 import static edu.wpi.first.units.Units.Volts;
 
+import static edu.wpi.first.units.Units.Amps;
+import static edu.wpi.first.units.Units.Seconds;
+import static edu.wpi.first.units.Units.Volts;
+
 import com.ctre.phoenix6.signals.InvertedValue;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Angle;
@@ -25,6 +29,9 @@ import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearAcceleration;
 import edu.wpi.first.units.measure.LinearVelocity;
+import edu.wpi.first.units.measure.Time;
+import edu.wpi.first.units.measure.Voltage;
+import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Time;
 import edu.wpi.first.units.measure.Voltage;
 
@@ -49,14 +56,28 @@ public final class Constants {
 
   public static class ManipulatorConstants {
     public static final InvertedValue MOTOR_INVERTED = InvertedValue.CounterClockwise_Positive;
-    public static final double STATOR_CURRENT_LIMIT = 40.0; // Amps
-    public static final double SUPPLY_CURRENT_LIMIT = 40.0; // Amps
-    public static final double INTAKE_SPEED = 0.05;
-    public static final double OUTTAKE_SPEED = -0.05;
-    public static final double REST_SPEED = 0;
-    public static final double MIN_OUTPUT = 0.1; // amps
-    public static final double MIN_CURRENT = 20.0; // amps
-    public static final double GAME_PIECE_DEBOUNCE_SECONDS = 0.1; // seconds
+
+    public static final Current STATOR_CURRENT_LIMIT = Amps.of(40);
+    public static final Current SUPPLY_CURRENT_LIMIT = Amps.of(40);
+
+    // Roller voltages. These are the starting values; both can be changed live on the dashboard
+    // (Manipulator/Intake Volts, Manipulator/Outtake Volts), then copied here.
+    // Both are positive magnitudes: the subsystem applies the sign (outtake runs negative).
+    // (0.6 V is roughly the old 5% duty cycle on a 12 V battery.)
+    public static final Voltage INTAKE_VOLTAGE = Volts.of(0.6);
+    public static final Voltage OUTTAKE_VOLTAGE = Volts.of(0.6);
+    public static final Voltage REST_VOLTAGE = Volts.of(0);
+
+    // Caps on the live dashboard values and on the motor's peak voltage, so nothing can ever send
+    // full power
+    public static final Voltage MAX_VOLTAGE = Volts.of(6.0);
+
+    // Game piece detection: the motor must be driven at least this hard in the intake direction...
+    // (keep this BELOW INTAKE_VOLTAGE or detection can never trigger)
+    public static final Voltage MIN_OUTPUT = Volts.of(0.3);
+    // ...while drawing at least this much stator current.
+    public static final Current MIN_CURRENT = Amps.of(20);
+    public static final Time GAME_PIECE_DEBOUNCE = Seconds.of(0.1);
   }
 
   public static class ElevatorConstants {
