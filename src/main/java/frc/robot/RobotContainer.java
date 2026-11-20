@@ -1,7 +1,5 @@
 package frc.robot;
 
-import static edu.wpi.first.units.Units.Seconds;
-
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -16,7 +14,7 @@ public class RobotContainer {
   private final ManipulatorPivot manipulatorPivot = new ManipulatorPivot();
   private final CommandXboxController driverXbox =
       new CommandXboxController(OperatorConstants.DRIVER_CONTROLLER_PORT);
-      private final CommandXboxController codriverXbox =
+  private final CommandXboxController codriverXbox =
       new CommandXboxController(OperatorConstants.CODRIVER_CONTROLLER_PORT);
 
   /** Field-relative drive, rotation controlled by the right stick. */
@@ -53,11 +51,10 @@ public class RobotContainer {
 
     // B held = point-to-direction drive mode (optional, remove if you don't want it)
     driverXbox.b().whileTrue(drivebase.driveFieldOriented(driveDirectAngle));
-    
-    codriverXbox.leftTrigger().whileTrue(manipulatorPivot.goToIntake());
-    codriverXbox.a().whileTrue(manipulatorPivot.goToOven());
-    codriverXbox.x().whileTrue(manipulatorPivot.goToScore());
-    
+
+    driverXbox.leftTrigger().whileTrue(manipulatorPivot.goToIntake());
+    driverXbox.rightTrigger().whileTrue(manipulatorPivot.goToOven());
+    driverXbox.rightBumper().whileTrue(manipulatorPivot.goToScore());
   }
 
   public Command getAutonomousCommand() {

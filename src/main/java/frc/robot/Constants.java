@@ -12,6 +12,7 @@ import static edu.wpi.first.units.Units.RPM;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.units.Units.Seconds;
 import static edu.wpi.first.units.Units.Volts;
+
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularAcceleration;
@@ -40,7 +41,7 @@ public final class Constants {
 
     // ---- Mechanism
     // Motor turns per turn of the pivot. Dimensionless.
-    public static final double GEAR_RATIO = 23.0; 
+    public static final double GEAR_RATIO = 23.0;
 
     // ---- Current limits
     public static final Current STATOR_CURRENT_LIMIT = Amps.of(40);
