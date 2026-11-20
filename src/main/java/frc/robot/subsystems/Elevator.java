@@ -52,7 +52,19 @@ public class Elevator extends SubsystemBase {
   private static final String kUpKey = "Elevator Manual Up Volts";
   private static final String kDownKey = "Elevator Manual Down Volts";
   private static final String kHoldKey = "Elevator Hold Volts";
-  private static final String kTestKey = "Elevator Test Target (in)";
+  private static final String kPickupKey = "Elevator Tuning/Pickup (in)";
+  private static final String kL1Key = "Elevator Tuning/L1 (in)";
+  private static final String kL2Key = "Elevator Tuning/L2 (in)";
+  private static final String kL3Key = "Elevator Tuning/L3 (in)";
+  private static final String kMinKey = "Elevator Tuning/Min Height (in)";
+  private static final String kMaxKey = "Elevator Tuning/Max Height (in)";
+  private static final String kVelKey = "Elevator Tuning/Max Speed (in per s)";
+  private static final String kAccelKey = "Elevator Tuning/Max Accel (in per s2)";
+
+  private double lastMaxM = Double.NaN;
+  private double lastMinM = Double.NaN;
+  private double lastVelMps = Double.NaN;
+  private double lastAccelMps2 = Double.NaN;
 
   // Carriage travel per output-shaft rotation (the spool circumference)
   private static final double kMetersPerRotation =
@@ -102,7 +114,15 @@ public class Elevator extends SubsystemBase {
     SmartDashboard.putNumber(kUpKey, ElevatorConstants.MANUAL_UP.in(Volts));
     SmartDashboard.putNumber(kDownKey, ElevatorConstants.MANUAL_DOWN.in(Volts));
     SmartDashboard.putNumber(kHoldKey, ElevatorConstants.HOLD.in(Volts));
-    SmartDashboard.putNumber(kTestKey, ElevatorConstants.TEST_SETPOINT.in(Inches));
+    SmartDashboard.putNumber(kPickupKey, ElevatorConstants.PICKUP.in(Inches));
+    SmartDashboard.putNumber(kL1Key, ElevatorConstants.L1.in(Inches));
+    SmartDashboard.putNumber(kL2Key, ElevatorConstants.L2.in(Inches));
+    SmartDashboard.putNumber(kL3Key, ElevatorConstants.L3.in(Inches));
+    SmartDashboard.putNumber(kMinKey, ElevatorConstants.MIN_HEIGHT.in(Inches));
+    SmartDashboard.putNumber(kMaxKey, ElevatorConstants.MAX_HEIGHT.in(Inches));
+    SmartDashboard.putNumber(kVelKey, ElevatorConstants.MAX_VELOCITY.in(InchesPerSecond));
+    SmartDashboard.putNumber(
+        kAccelKey, ElevatorConstants.MAX_ACCEL.in(InchesPerSecond.per(Second)));
   }
 
   // ------------------------------------------------------------------ Unit conversion
@@ -128,12 +148,76 @@ public class Elevator extends SubsystemBase {
     return MetersPerSecond.of(w.in(RotationsPerSecond) * kMetersPerRotation);
   }
 
-  private static Distance clampHeight(Distance h) {
-    return Meters.of(
+  private static double dash(String key, double fallback) {
+    return SmartDashboard.getNumber(key, fallback);
+  }
+
+  /** Live max height, capped by ABSOLUTE_MAX_HEIGHT. */
+  private Distance maxHeight() {
+    return Inches.of(
         MathUtil.clamp(
-            h.in(Meters),
-            ElevatorConstants.MIN_HEIGHT.in(Meters),
-            ElevatorConstants.MAX_HEIGHT.in(Meters)));
+            dash(kMaxKey, ElevatorConstants.MAX_HEIGHT.in(Inches)),
+            0,
+            ElevatorConstants.ABSOLUTE_MAX_HEIGHT.in(Inches)));
+  }
+
+  /** Live min height, between 0 and the live max. */
+  private Distance minHeight() {
+    return Inches.of(
+        MathUtil.clamp(
+            dash(kMinKey, ElevatorConstants.MIN_HEIGHT.in(Inches)), 0, maxHeight().in(Inches)));
+  }
+
+  /** Live cruise speed. Floored so a 0 can never be sent (0 means "no limit" on Phoenix). */
+  private LinearVelocity maxVelocity() {
+    return InchesPerSecond.of(
+        MathUtil.clamp(
+            dash(kVelKey, ElevatorConstants.MAX_VELOCITY.in(InchesPerSecond)),
+            0.5,
+            ElevatorConstants.ABSOLUTE_MAX_VELOCITY.in(InchesPerSecond)));
+  }
+
+  private LinearAcceleration maxAccel() {
+    return InchesPerSecond.per(Second)
+        .of(
+            MathUtil.clamp(
+                dash(kAccelKey, ElevatorConstants.MAX_ACCEL.in(InchesPerSecond.per(Second))),
+                1.0,
+                ElevatorConstants.ABSOLUTE_MAX_ACCEL.in(InchesPerSecond.per(Second))));
+  }
+
+  private Distance clampHeight(Distance h) {
+    return Meters.of(MathUtil.clamp(h.in(Meters), minHeight().in(Meters), maxHeight().in(Meters)));
+  }
+
+  /** Pushes changed min/max/speed values to the motor. Does nothing if nothing changed. */
+  private void applyLiveLimits() {
+    double max = maxHeight().in(Meters);
+    double min = minHeight().in(Meters);
+    double vel = maxVelocity().in(MetersPerSecond);
+    double acc = maxAccel().in(MetersPerSecondPerSecond);
+    if (max == lastMaxM && min == lastMinM && vel == lastVelMps && acc == lastAccelMps2) {
+      return;
+    }
+    lastMaxM = max;
+    lastMinM = min;
+    lastVelMps = vel;
+    lastAccelMps2 = acc;
+
+    config.SoftwareLimitSwitch.ForwardSoftLimitThreshold =
+        toRotations(Meters.of(max)).in(Rotations);
+    config.SoftwareLimitSwitch.ReverseSoftLimitThreshold =
+        toRotations(Meters.of(min)).in(Rotations);
+    config.MotionMagic.MotionMagicCruiseVelocity = vel / kMetersPerRotation;
+    config.MotionMagic.MotionMagicAcceleration = acc / kMetersPerRotation;
+
+    // config keeps the reverse-limit enable state (it turns on in zeroHere), so this does not
+    // switch the bottom limit on early.
+    StatusCode a = elevatorLeader.getConfigurator().apply(config.SoftwareLimitSwitch);
+    StatusCode b = elevatorLeader.getConfigurator().apply(config.MotionMagic);
+    if (!a.isOK() || !b.isOK()) {
+      DriverStation.reportError("Elevator: live limit update failed: " + a + " / " + b, false);
+    }
   }
 
   // ------------------------------------------------------------------ Config
@@ -256,12 +340,12 @@ public class Elevator extends SubsystemBase {
 
   // ------------------------------------------------------------------ Setpoints (Motion Magic)
 
-  /** Moves down to the bottom to pick something up. */
+  /** Moves down to the pickup height (dashboard: Elevator Tuning/Pickup). */
   public Command goToPickup() {
-    return goToPosition(ElevatorConstants.PICKUP).withName("Elevator Pickup");
+    return goToTunable(kPickupKey, ElevatorConstants.PICKUP).withName("Elevator Pickup");
   }
 
-  /** Moves up to the top. Blocked until the real top height has been measured and entered. */
+  /** Moves up to just below the live max. Blocked until the top has been measured. */
   public Command goToTop() {
     if (!ElevatorConstants.MAX_HEIGHT_VERIFIED) {
       return Commands.runOnce(
@@ -272,41 +356,25 @@ public class Elevator extends SubsystemBase {
                       false))
           .withName("Elevator Top (blocked)");
     }
-    return goToPosition(ElevatorConstants.TOP).withName("Elevator Top");
+    return goToPosition(() -> maxHeight().minus(ElevatorConstants.TOP_MARGIN))
+        .withName("Elevator Top");
   }
 
-  /** Moves to level 1. */
   public Command goToL1() {
-    return goToLevel(ElevatorConstants.L1).withName("Elevator L1");
+    return goToTunable(kL1Key, ElevatorConstants.L1).withName("Elevator L1");
   }
 
-  /** Moves to level 2. */
   public Command goToL2() {
-    return goToLevel(ElevatorConstants.L2).withName("Elevator L2");
+    return goToTunable(kL2Key, ElevatorConstants.L2).withName("Elevator L2");
   }
 
-  /** Moves to level 3. */
   public Command goToL3() {
-    return goToLevel(ElevatorConstants.L3).withName("Elevator L3");
+    return goToTunable(kL3Key, ElevatorConstants.L3).withName("Elevator L3");
   }
 
-  /** Moves to the dashboard "Elevator Test Target (in)" (clamped to the legal travel range). */
-  public Command goToTestTarget() {
-    return goToPosition(this::testTarget).withName("Elevator Test Target");
-  }
-
-  private Distance testTarget() {
-    return clampHeight(
-        Inches.of(SmartDashboard.getNumber(kTestKey, ElevatorConstants.TEST_SETPOINT.in(Inches))));
-  }
-
-  /** Same as goToPosition, but the target is clamped to the legal travel range first. */
-  private Command goToLevel(Distance target) {
-    return goToPosition(clampHeight(target));
-  }
-
-  private Command goToPosition(Distance target) {
-    return goToPosition(() -> target);
+  /** Reads the dashboard height (inches) every loop, clamped to the live min/max. */
+  private Command goToTunable(String key, Distance fallback) {
+    return goToPosition(() -> clampHeight(Inches.of(dash(key, fallback.in(Inches)))));
   }
 
   /**
@@ -334,6 +402,7 @@ public class Elevator extends SubsystemBase {
 
   @Override
   public void periodic() {
+    applyLiveLimits();
     SmartDashboard.putNumber(
         "Elevator Height (in)", toHeight(position.refresh().getValue()).in(Inches));
     SmartDashboard.putNumber(

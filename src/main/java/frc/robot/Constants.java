@@ -78,6 +78,11 @@ public final class Constants {
      */
     public static final Distance MAX_HEIGHT = Inches.of(2); // TODO measure
 
+    // ---- Hard caps for the live dashboard values (Elastic can never go past these)
+    public static final Distance ABSOLUTE_MAX_HEIGHT = Inches.of(60); // TODO real hard-stop limit
+    public static final LinearVelocity ABSOLUTE_MAX_VELOCITY = InchesPerSecond.of(30);
+    public static final LinearAcceleration ABSOLUTE_MAX_ACCEL = InchesPerSecond.per(Second).of(60);
+
     // ---- Setpoints (keep them below MAX_HEIGHT, they are clamped to it)
     public static final Distance PICKUP = MIN_HEIGHT;
     public static final Distance L1 = Inches.of(0.5); // TODO measure
@@ -86,8 +91,6 @@ public final class Constants {
     // Top sits a little below the top soft limit, so it never pushes into the limit.
     public static final Distance TOP_MARGIN = Inches.of(0.25);
     public static final Distance TOP = MAX_HEIGHT.minus(TOP_MARGIN);
-    // Default for the dashboard "Elevator Test Target (in)"
-    public static final Distance TEST_SETPOINT = Inches.of(1.0);
 
     // SAFETY: the top setpoint is blocked until this is true. Set it to true ONLY after
     // MAX_HEIGHT is the real, measured value (a bit below the top hard stop).
