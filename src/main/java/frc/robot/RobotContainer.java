@@ -23,7 +23,7 @@ public class RobotContainer {
   // Controllers
   private final CommandXboxController driverXbox =
       new CommandXboxController(OperatorConstants.DRIVER_CONTROLLER_PORT);
-      private final CommandXboxController codriverXbox =
+  private final CommandXboxController codriverXbox =
       new CommandXboxController(OperatorConstants.CODRIVER_CONTROLLER_PORT);
 
   // The list of autos shown on the dashboard
@@ -64,11 +64,10 @@ public class RobotContainer {
 
     // B held = point-to-direction drive mode (optional, remove if you don't want it)
     driverXbox.b().whileTrue(drivebase.driveFieldOriented(driveDirectAngle));
-    
-    codriverXbox.leftTrigger().whileTrue(manipulatorPivot.goToIntake());
-    codriverXbox.a().whileTrue(manipulatorPivot.goToOven());
-    codriverXbox.x().whileTrue(manipulatorPivot.goToScore());
-    
+
+    driverXbox.leftTrigger().whileTrue(manipulatorPivot.goToIntake());
+    driverXbox.rightTrigger().whileTrue(manipulatorPivot.goToOven());
+    driverXbox.rightBumper().whileTrue(manipulatorPivot.goToScore());
 
     // Codriver - elevator: right stick Y moves it (up = up). It is the default command, so the
     // elevator holds its position whenever the stick is centered.
