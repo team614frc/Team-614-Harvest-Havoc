@@ -53,6 +53,7 @@ public class Elevator extends SubsystemBase {
   private static final String kDownKey = "Elevator Manual Down Volts";
   private static final String kHoldKey = "Elevator Hold Volts";
   private static final String kPickupKey = "Elevator Tuning/Pickup (in)";
+  private static final String kOvenKey = "Elevator Tuning/Oven (in)";
   private static final String kL1Key = "Elevator Tuning/L1 (in)";
   private static final String kL2Key = "Elevator Tuning/L2 (in)";
   private static final String kL3Key = "Elevator Tuning/L3 (in)";
@@ -115,6 +116,7 @@ public class Elevator extends SubsystemBase {
     SmartDashboard.putNumber(kDownKey, ElevatorConstants.MANUAL_DOWN.in(Volts));
     SmartDashboard.putNumber(kHoldKey, ElevatorConstants.HOLD.in(Volts));
     SmartDashboard.putNumber(kPickupKey, ElevatorConstants.PICKUP.in(Inches));
+    SmartDashboard.putNumber(kOvenKey, ElevatorConstants.OVEN.in(Inches));
     SmartDashboard.putNumber(kL1Key, ElevatorConstants.L1.in(Inches));
     SmartDashboard.putNumber(kL2Key, ElevatorConstants.L2.in(Inches));
     SmartDashboard.putNumber(kL3Key, ElevatorConstants.L3.in(Inches));
@@ -360,6 +362,10 @@ public class Elevator extends SubsystemBase {
         .withName("Elevator Top");
   }
 
+  public Command goToOven() {
+    return goToTunable(kOvenKey, ElevatorConstants.OVEN).withName("Elevator Oven");
+  }
+
   public Command goToL1() {
     return goToTunable(kL1Key, ElevatorConstants.L1).withName("Elevator L1");
   }
@@ -387,11 +393,12 @@ public class Elevator extends SubsystemBase {
    */
   private Command goToPosition(java.util.function.Supplier<Distance> target) {
     return this.runEnd(
-        () -> {
-          activeTarget = target.get();
-          elevatorLeader.setControl(motionMagic.withPosition(toRotations(activeTarget)));
-        },
-        () -> elevatorLeader.setControl(voltageOut.withOutput(holdVolts())));
+            () -> {
+              activeTarget = target.get();
+              elevatorLeader.setControl(motionMagic.withPosition(toRotations(activeTarget)));
+            },
+            () -> elevatorLeader.setControl(voltageOut.withOutput(holdVolts())))
+        .beforeStarting(() -> activeTarget = target.get());
   }
 
   /** True when the carriage is within tolerance of the last Motion Magic target. */

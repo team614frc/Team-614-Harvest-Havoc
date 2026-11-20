@@ -84,7 +84,9 @@ public final class Constants {
     public static final LinearAcceleration ABSOLUTE_MAX_ACCEL = InchesPerSecond.per(Second).of(60);
 
     // ---- Setpoints (keep them below MAX_HEIGHT, they are clamped to it)
-    public static final Distance PICKUP = MIN_HEIGHT;
+
+    public static final Distance PICKUP = Inches.of(0.0);
+    public static final Distance OVEN = Inches.of(0.25); // TODO measure
     public static final Distance L1 = Inches.of(0.5); // TODO measure
     public static final Distance L2 = Inches.of(1.0); // TODO measure
     public static final Distance L3 = Inches.of(1.5); // TODO measure

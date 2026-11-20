@@ -74,7 +74,8 @@ public class RobotContainer {
     codriverXbox.back().onTrue(elevator.zeroHere());
 
     // Codriver - elevator setpoints (HOLD the button; releasing it cancels and returns to stick)
-    codriverXbox.a().whileTrue(elevator.goToPickup()); // bottom
+    codriverXbox.leftBumper().whileTrue(elevator.goToPickup());
+    codriverXbox.a().whileTrue(elevator.goToOven());
     codriverXbox.x().whileTrue(elevator.goToL1());
     codriverXbox.y().whileTrue(elevator.goToL2());
     codriverXbox.b().whileTrue(elevator.goToL3());
@@ -93,6 +94,7 @@ public class RobotContainer {
   private void configureAutos() {
     autoChooser.setDefaultOption("Do Nothing", Commands.none());
     autoChooser.addOption("Elevator: Pickup (bottom)", toSetpoint(elevator.goToPickup()));
+    autoChooser.addOption("Elevator: Oven", toSetpoint(elevator.goToOven()));
     autoChooser.addOption("Elevator: Top", toSetpoint(elevator.goToTop()));
     autoChooser.addOption("Elevator: L1", toSetpoint(elevator.goToL1()));
     autoChooser.addOption("Elevator: L2", toSetpoint(elevator.goToL2()));
@@ -105,11 +107,6 @@ public class RobotContainer {
             Commands.waitSeconds(1.0), // pretend to pick something up
             toSetpoint(elevator.goToTop())));
     SmartDashboard.putData("Auto Chooser", autoChooser);
-
-    // Dashboard buttons for testing a move without a controller
-    SmartDashboard.putData("Elevator L1", elevator.goToL1());
-    SmartDashboard.putData("Elevator L2", elevator.goToL2());
-    SmartDashboard.putData("Elevator L3", elevator.goToL3());
   }
 
   /**
