@@ -3,13 +3,16 @@ package frc.robot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants.OperatorConstants;
+import frc.robot.subsystems.Manipulator;
 import frc.robot.subsystems.Swerve;
 import swervelib.SwerveInputStream;
 
 public class RobotContainer {
 
   private final Swerve drivebase = new Swerve();
+  private final Manipulator manipulator = new Manipulator();
 
   private final CommandXboxController driverXbox =
       new CommandXboxController(OperatorConstants.DRIVER_CONTROLLER_PORT);
@@ -48,6 +51,14 @@ public class RobotContainer {
 
     // B held = point-to-direction drive mode (optional, remove if you don't want it)
     driverXbox.b().whileTrue(drivebase.driveFieldOriented(driveDirectAngle));
+
+    // Left trigger held = intake
+    driverXbox.leftTrigger().whileTrue(manipulator.intake()).onFalse(manipulator.stop());
+
+    // Right trigger held = outtake
+    driverXbox.rightTrigger().whileTrue(manipulator.outtake()).onFalse(manipulator.stop());
+
+    new Trigger(manipulator::hasGamePiece).onTrue(manipulator.stop());
   }
 
   public Command getAutonomousCommand() {
