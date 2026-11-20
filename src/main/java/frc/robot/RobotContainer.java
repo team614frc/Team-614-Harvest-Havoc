@@ -4,15 +4,18 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.OperatorConstants;
+import frc.robot.subsystems.ManipulatorPivot;
 import frc.robot.subsystems.Swerve;
 import swervelib.SwerveInputStream;
 
 public class RobotContainer {
 
   private final Swerve drivebase = new Swerve();
-
+  private final ManipulatorPivot manipulatorPivot = new ManipulatorPivot();
   private final CommandXboxController driverXbox =
       new CommandXboxController(OperatorConstants.DRIVER_CONTROLLER_PORT);
+  private final CommandXboxController codriverXbox =
+      new CommandXboxController(OperatorConstants.CODRIVER_CONTROLLER_PORT);
 
   /** Field-relative drive, rotation controlled by the right stick. */
   private final SwerveInputStream driveAngularVelocity =
@@ -48,6 +51,10 @@ public class RobotContainer {
 
     // B held = point-to-direction drive mode (optional, remove if you don't want it)
     driverXbox.b().whileTrue(drivebase.driveFieldOriented(driveDirectAngle));
+
+    driverXbox.leftTrigger().whileTrue(manipulatorPivot.goToIntake());
+    driverXbox.rightTrigger().whileTrue(manipulatorPivot.goToOven());
+    driverXbox.rightBumper().whileTrue(manipulatorPivot.goToScore());
   }
 
   public Command getAutonomousCommand() {
