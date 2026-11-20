@@ -9,4 +9,5 @@ public final class Ports {
   // Talon FX IDs
   public static final int kElevatorLeader = 10;
   public static final int kElevatorFollower = 11;
+  public static final int kPivotMotor = 31;
 }

@@ -10,6 +10,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.ElevatorConstants;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.subsystems.Elevator;
+import frc.robot.subsystems.ManipulatorPivot;
 import frc.robot.subsystems.Swerve;
 import swervelib.SwerveInputStream;
 
@@ -18,12 +19,11 @@ public class RobotContainer {
   // Subsystems
   private final Swerve drivebase = new Swerve();
   private final Elevator elevator = new Elevator();
-
+  private final ManipulatorPivot manipulatorPivot = new ManipulatorPivot();
   // Controllers
   private final CommandXboxController driverXbox =
       new CommandXboxController(OperatorConstants.DRIVER_CONTROLLER_PORT);
-
-  private final CommandXboxController codriverXbox =
+      private final CommandXboxController codriverXbox =
       new CommandXboxController(OperatorConstants.CODRIVER_CONTROLLER_PORT);
 
   // The list of autos shown on the dashboard
@@ -64,6 +64,11 @@ public class RobotContainer {
 
     // B held = point-to-direction drive mode (optional, remove if you don't want it)
     driverXbox.b().whileTrue(drivebase.driveFieldOriented(driveDirectAngle));
+    
+    codriverXbox.leftTrigger().whileTrue(manipulatorPivot.goToIntake());
+    codriverXbox.a().whileTrue(manipulatorPivot.goToOven());
+    codriverXbox.x().whileTrue(manipulatorPivot.goToScore());
+    
 
     // Codriver - elevator: right stick Y moves it (up = up). It is the default command, so the
     // elevator holds its position whenever the stick is centered.
