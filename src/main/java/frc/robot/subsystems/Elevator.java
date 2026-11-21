@@ -4,7 +4,17 @@
 
 package frc.robot.subsystems;
 
-import static edu.wpi.first.units.Units.*;
+import static edu.wpi.first.units.Units.Amps;
+import static edu.wpi.first.units.Units.Inches;
+import static edu.wpi.first.units.Units.InchesPerSecond;
+import static edu.wpi.first.units.Units.Meters;
+import static edu.wpi.first.units.Units.MetersPerSecond;
+import static edu.wpi.first.units.Units.MetersPerSecondPerSecond;
+import static edu.wpi.first.units.Units.Rotations;
+import static edu.wpi.first.units.Units.RotationsPerSecond;
+import static edu.wpi.first.units.Units.Second;
+import static edu.wpi.first.units.Units.Seconds;
+import static edu.wpi.first.units.Units.Volts;
 
 import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.StatusSignal;
@@ -21,14 +31,17 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
+import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearAcceleration;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.FunctionalCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.ElevatorConstants;
 import frc.robot.Ports;
@@ -61,11 +74,18 @@ public class Elevator extends SubsystemBase {
   private static final String kMaxKey = "Elevator Tuning/Max Height (in)";
   private static final String kVelKey = "Elevator Tuning/Max Speed (in per s)";
   private static final String kAccelKey = "Elevator Tuning/Max Accel (in per s2)";
+  private static final String kHomeVoltsKey = "Elevator Tuning/Homing Volts";
+  private static final String kHomeCurrentKey = "Elevator Tuning/Homing Stall Amps";
 
   private double lastMaxM = Double.NaN;
   private double lastMinM = Double.NaN;
   private double lastVelMps = Double.NaN;
   private double lastAccelMps2 = Double.NaN;
+
+  // Homing state
+  private boolean homingMoved;
+  private boolean homingStalled;
+  private double homingStallSince = Double.NaN;
 
   // Carriage travel per output-shaft rotation (the spool circumference)
   private static final double kMetersPerRotation =
@@ -77,6 +97,8 @@ public class Elevator extends SubsystemBase {
       ElevatorConstants.HAS_FOLLOWER
           ? new TalonFX(Ports.kElevatorFollower, Ports.kRoboRioCANBus)
           : null;
+
+  private final StatusSignal<Current> statorCurrent = elevatorLeader.getStatorCurrent();
 
   private final TalonFXConfiguration config = new TalonFXConfiguration();
   private final StatusSignal<Angle> position = elevatorLeader.getPosition();
@@ -125,6 +147,8 @@ public class Elevator extends SubsystemBase {
     SmartDashboard.putNumber(kVelKey, ElevatorConstants.MAX_VELOCITY.in(InchesPerSecond));
     SmartDashboard.putNumber(
         kAccelKey, ElevatorConstants.MAX_ACCEL.in(InchesPerSecond.per(Second)));
+    SmartDashboard.putNumber(kHomeVoltsKey, ElevatorConstants.HOMING_VOLTAGE.in(Volts));
+    SmartDashboard.putNumber(kHomeCurrentKey, ElevatorConstants.HOMING_STALL_CURRENT.in(Amps));
   }
 
   // ------------------------------------------------------------------ Unit conversion
@@ -340,6 +364,84 @@ public class Elevator extends SubsystemBase {
         .withName("Elevator Zero Here");
   }
 
+  private void setReverseLimitEnabled(boolean enabled) {
+    config.SoftwareLimitSwitch.ReverseSoftLimitEnable = enabled;
+    StatusCode s = elevatorLeader.getConfigurator().apply(config.SoftwareLimitSwitch);
+    if (!s.isOK()) {
+      DriverStation.reportError("Elevator: bottom limit update failed: " + s, false);
+    }
+  }
+
+  /**
+   * Lowers slowly until the carriage stalls on the bottom stop, then zeroes and turns the bottom
+   * soft limit back on. It requires the elevator, so the stick is locked out while it runs. If it
+   * is cancelled, times out, or never sees the carriage move, it does NOT zero.
+   */
+  public Command homeElevator() {
+    return new FunctionalCommand(
+            () -> {
+              homingMoved = false;
+              homingStalled = false;
+              homingStallSince = Double.NaN;
+              setReverseLimitEnabled(false); // so a wrong old zero can't block the descent
+            },
+            this::homingStep,
+            interrupted -> {
+              elevatorLeader.stopMotor();
+              if (!interrupted && homingStalled) {
+                elevatorLeader.setPosition(toRotations(ElevatorConstants.MIN_HEIGHT));
+                setReverseLimitEnabled(true);
+              } else {
+                DriverStation.reportError(
+                    "Elevator: homing stopped without finding the bottom. NOT zeroed. If it"
+                        + " never moved, raise Homing Volts (or it is already at the bottom:"
+                        + " use Back).",
+                    false);
+              }
+            },
+            () -> homingStalled,
+            this)
+        .withTimeout(ElevatorConstants.HOMING_TIMEOUT.in(Seconds))
+        .withName("Elevator Home");
+  }
+
+  private void homingStep() {
+    double volts =
+        MathUtil.clamp(
+            dash(kHomeVoltsKey, ElevatorConstants.HOMING_VOLTAGE.in(Volts)),
+            0,
+            ElevatorConstants.HOMING_MAX_VOLTAGE.in(Volts));
+    double stallAmps =
+        MathUtil.clamp(
+            dash(kHomeCurrentKey, ElevatorConstants.HOMING_STALL_CURRENT.in(Amps)),
+            1,
+            ElevatorConstants.STATOR_CURRENT_LIMIT.in(Amps));
+
+    elevatorLeader.setControl(voltageOut.withOutput(Volts.of(-volts)));
+
+    double speedInPerS = toLinearVelocity(velocity.refresh().getValue()).in(InchesPerSecond);
+    double amps = Math.abs(statorCurrent.refresh().getValue().in(Amps));
+
+    // It must be seen moving down before a stall counts
+    if (speedInPerS < -ElevatorConstants.HOMING_MOVING_VELOCITY.in(InchesPerSecond)) {
+      homingMoved = true;
+    }
+
+    boolean stalled =
+        homingMoved
+            && Math.abs(speedInPerS) < ElevatorConstants.HOMING_STALL_VELOCITY.in(InchesPerSecond)
+            && amps > stallAmps;
+
+    if (!stalled) {
+      homingStallSince = Double.NaN;
+    } else if (Double.isNaN(homingStallSince)) {
+      homingStallSince = Timer.getFPGATimestamp();
+    } else if (Timer.getFPGATimestamp() - homingStallSince
+        >= ElevatorConstants.HOMING_DEBOUNCE.in(Seconds)) {
+      homingStalled = true;
+    }
+  }
+
   // ------------------------------------------------------------------ Setpoints (Motion Magic)
 
   /** Moves down to the pickup height (dashboard: Elevator Tuning/Pickup). */
@@ -415,5 +517,7 @@ public class Elevator extends SubsystemBase {
     SmartDashboard.putNumber(
         "Elevator Velocity (in/s)",
         toLinearVelocity(velocity.refresh().getValue()).in(InchesPerSecond));
+    SmartDashboard.putNumber(
+        "Elevator Stator Current (A)", statorCurrent.refresh().getValue().in(Amps));
   }
 }

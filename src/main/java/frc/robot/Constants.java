@@ -123,5 +123,16 @@ public final class Constants {
     // Profile limits, in carriage height per second. Deliberately slow to start.
     public static final LinearVelocity MAX_VELOCITY = InchesPerSecond.of(10);
     public static final LinearAcceleration MAX_ACCEL = InchesPerSecond.per(Second).of(20);
+
+    // ---- Homing: lower slowly until it stalls on the bottom stop, then zero.
+    // All of these are starting guesses. Tune them from the dashboard first
+    // (Elevator Tuning/Homing ...), then copy the final values here.
+    public static final Voltage HOMING_VOLTAGE = Volts.of(1.0); // magnitude, applied DOWNWARD
+    public static final Voltage HOMING_MAX_VOLTAGE = Volts.of(3.0); // dashboard cap
+    public static final Current HOMING_STALL_CURRENT = Amps.of(15); // TODO tune
+    public static final LinearVelocity HOMING_MOVING_VELOCITY = InchesPerSecond.of(0.5);
+    public static final LinearVelocity HOMING_STALL_VELOCITY = InchesPerSecond.of(0.1);
+    public static final Time HOMING_DEBOUNCE = Seconds.of(0.25); // stall must last this long
+    public static final Time HOMING_TIMEOUT = Seconds.of(10);
   }
 }

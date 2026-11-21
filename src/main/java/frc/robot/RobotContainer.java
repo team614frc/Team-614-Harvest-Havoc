@@ -81,6 +81,7 @@ public class RobotContainer {
     codriverXbox.x().whileTrue(elevator.goToL1());
     codriverXbox.y().whileTrue(elevator.goToL2());
     codriverXbox.b().whileTrue(elevator.goToL3());
+    codriverXbox.start().whileTrue(elevator.homeElevator());
   }
 
   /**
