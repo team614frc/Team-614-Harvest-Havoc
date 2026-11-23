@@ -91,11 +91,6 @@ public class RobotContainer {
         .withTimeout(ElevatorConstants.SETPOINT_TIMEOUT.in(Seconds));
   }
 
-  /**
-   * Keys you can type into a BLine event trigger (the "Lib Key" field). Each key gets its own
-   * command object, so don't reuse these commands in a button binding or the chooser.
-   */
-
   // The autos you can pick on the dashboard before enabling Autonomous
   private void configureAutos() {
     autoChooser.setDefaultOption("Do Nothing", Commands.none());
