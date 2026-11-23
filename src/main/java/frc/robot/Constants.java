@@ -132,9 +132,24 @@ public final class Constants {
     public static final double kV = 12.0 / MAX_OUTPUT_RPS; // theoretical starting guess
     public static final double kA = 0;
 
+    /*recalc.lc PID VALUES THAT WERE CALCULATED. EXPECTED TO REACH FROM BOTTOM TO TOP IN 2 SECONDS
+    public static final double kP = 1.8; // volts per rotation of error (lower if it shakes)
+    public static final double kI = 0;
+    public static final double kD = 0;
+    public static final double kS = 0.0; // volts to just start moving (raise if it stalls short)
+    public static final double kG = HOLD.in(Volts); // volts to hold against gravity
+    public static final double kV = 16.0 / MAX_OUTPUT_RPS; // theoretical starting guess
+    public static final double kA = 0; */
+
     // Profile limits, in carriage height per second. Deliberately slow to start.
     public static final LinearVelocity MAX_VELOCITY = InchesPerSecond.of(10);
     public static final LinearAcceleration MAX_ACCEL = InchesPerSecond.per(Second).of(20);
+
+    /*
+     * // recal.lc VALUES THAT WERE CALCULATED. EXPECTED TO REACH FROM BOTTOM TO TOP IN 2 SECONDS
+    public static final LinearVelocity MAX_VELOCITY = InchesPerSecond.of(27);
+    public static final LinearAcceleration MAX_ACCEL = InchesPerSecond.per(Second).of(5810);
+     */
 
     // ---- Homing: lower slowly until it stalls on the bottom stop, then zero.
     // All of these are starting guesses. Tune them from the dashboard first
