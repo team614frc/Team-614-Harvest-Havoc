@@ -9,7 +9,6 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.ElevatorConstants;
 import frc.robot.Constants.OperatorConstants;
-import frc.robot.lib.BLine.FollowPath;
 import frc.robot.subsystems.Elevator;
 import frc.robot.subsystems.Swerve;
 import swervelib.SwerveInputStream;
@@ -49,7 +48,6 @@ public class RobotContainer {
           .headingWhile(true);
 
   public RobotContainer() {
-    configureBLineEvents(); // register event keys before any path runs
     configureBindings();
     configureAutos();
   }
@@ -97,13 +95,6 @@ public class RobotContainer {
    * Keys you can type into a BLine event trigger (the "Lib Key" field). Each key gets its own
    * command object, so don't reuse these commands in a button binding or the chooser.
    */
-  private void configureBLineEvents() {
-    FollowPath.registerEventTrigger("elevatorPickup", toSetpoint(elevator.goToPickup()));
-    FollowPath.registerEventTrigger("elevatorOven", toSetpoint(elevator.goToOven()));
-    FollowPath.registerEventTrigger("elevatorL1", toSetpoint(elevator.goToL1()));
-    FollowPath.registerEventTrigger("elevatorL2", toSetpoint(elevator.goToL2()));
-    FollowPath.registerEventTrigger("elevatorL3", toSetpoint(elevator.goToL3()));
-  }
 
   // The autos you can pick on the dashboard before enabling Autonomous
   private void configureAutos() {

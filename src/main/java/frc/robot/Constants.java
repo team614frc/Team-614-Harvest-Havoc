@@ -79,7 +79,7 @@ public final class Constants {
     public static final Distance MAX_HEIGHT = Inches.of(2); // TODO measure
 
     // ---- Hard caps for the live dashboard values (Elastic can never go past these)
-    public static final Distance ABSOLUTE_MAX_HEIGHT = Inches.of(60); // TODO real hard-stop limit
+    public static final Distance ABSOLUTE_MAX_HEIGHT = MAX_HEIGHT; // TODO real hard-stop limit
     public static final LinearVelocity ABSOLUTE_MAX_VELOCITY = InchesPerSecond.of(30);
     public static final LinearAcceleration ABSOLUTE_MAX_ACCEL = InchesPerSecond.per(Second).of(60);
 
@@ -101,7 +101,7 @@ public final class Constants {
     // How close counts as "arrived"
     public static final Distance TOLERANCE = Inches.of(0.25);
     // Give up (and just hold) if it has not arrived by then.
-    public static final Time SETPOINT_TIMEOUT = Seconds.of(15);
+    public static final Time SETPOINT_TIMEOUT = Seconds.of(5);
 
     // ---- Motion Magic (CTRE motion-profiled position control, runs on the motor)
     // Kraken X44 free speed. Only used for the starting guess for kV below.
