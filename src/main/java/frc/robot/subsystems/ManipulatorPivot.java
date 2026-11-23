@@ -51,12 +51,12 @@ import java.util.function.Supplier;
  * matters because the pivot uses Arm_Cosine gravity compensation, which needs the motor to report
  * the true angle from horizontal.
  *
- * <p>Zeroing works like the elevator: the code NEVER resets the position on its own. The pivot
- * must START each power-up resting on its reference stop (MIN_ANGLE), and after every power cycle
- * (or brownout) you press the zero button (zeroHere) with the pivot on the stop. That sets the
- * motor to MIN_ANGLE and turns on the stop-side soft limit. A robot-code restart or redeploy keeps
- * the motor's position, so it does not need re-zeroing. Until zeroHere is pressed, the motor reads
- * 0 from power-on, which is only correct if MIN_ANGLE is 0.
+ * <p>Zeroing works like the elevator: the code NEVER resets the position on its own. The pivot must
+ * START each power-up resting on its reference stop (MIN_ANGLE), and after every power cycle (or
+ * brownout) you press the zero button (zeroHere) with the pivot on the stop. That sets the motor to
+ * MIN_ANGLE and turns on the stop-side soft limit. A robot-code restart or redeploy keeps the
+ * motor's position, so it does not need re-zeroing. Until zeroHere is pressed, the motor reads 0
+ * from power-on, which is only correct if MIN_ANGLE is 0.
  *
  * <p>Homing: instead of pressing zeroHere by hand, homeManipulator drives slowly toward the stop
  * until the pivot stalls on it, then zeroes automatically.
