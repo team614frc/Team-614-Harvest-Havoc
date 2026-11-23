@@ -1,7 +1,7 @@
 {
   "location": {
-    "front": 13.5,
-    "left": -12.75
+    "front": 13,
+    "left": -13
   },
   "absoluteEncoderOffset": 252,
   "drive": {
@@ -10,7 +10,7 @@
     "canbus": "canivore"
   },
   "angle": {
-    "type": "krakenx60",
+    "type": "krakenx44",
     "id": 8,
     "canbus": "canivore"
   },
