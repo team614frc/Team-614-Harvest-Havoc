@@ -48,7 +48,7 @@ public final class Constants {
 
   public static class ElevatorConstants {
     // ---- Wiring / direction
-    public static final boolean HAS_FOLLOWER = false; // false only for one-motor bench tests
+    public static final boolean HAS_FOLLOWER = true; // false only for one-motor bench tests
     // false = follower spins same way as leader, true = opposite (motors facing each other)
     public static final boolean FOLLOWER_OPPOSES_LEADER = true; // verify on blocks
     // Flip if the elevator goes DOWN when the stick is pushed UP
@@ -88,7 +88,7 @@ public final class Constants {
      * PLACEHOLDER: keep small until measured. Find the real value by driving up slowly and reading
      * "Elevator Height (in)" on the dashboard, then check it with a tape measure.
      */
-    public static final Distance MAX_HEIGHT = Inches.of(60); // TODO measure
+    public static final Distance MAX_HEIGHT = Inches.of(2); // TODO measure
 
     // ---- Hard caps for the live dashboard values (Elastic can never go past these)
     public static final Distance ABSOLUTE_MAX_HEIGHT = MAX_HEIGHT; // TODO real hard-stop limit
