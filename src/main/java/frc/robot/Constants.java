@@ -60,7 +60,7 @@ public final class Constants {
     // Radius of the drum the cable/chain wraps on. Height <-> rotations conversion uses this.
     // If the elevator is cascade/continuous rigged, use the EFFECTIVE radius (carriage travel
     // per spool turn / 2*pi).
-    public static final Distance SPOOL_RADIUS = Inches.of(0.75); // TODO measure
+    public static final Distance SPOOL_RADIUS = Inches.of(1); // TODO measure
 
     // ---- Current limits
     public static final Current STATOR_CURRENT_LIMIT = Amps.of(60);
