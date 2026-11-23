@@ -53,6 +53,9 @@ public class RobotContainer {
   }
 
   private void configureBindings() {
+    // ---------------------------------------------------------------- Driver
+    // The driver only drives, picks up, and scores.
+
     // Default command: drive with the sticks
     drivebase.setDefaultCommand(drivebase.driveFieldOriented(driveAngularVelocity));
 
@@ -65,26 +68,58 @@ public class RobotContainer {
     // B held = point-to-direction drive mode (optional, remove if you don't want it)
     driverXbox.b().whileTrue(drivebase.driveFieldOriented(driveDirectAngle));
 
-    driverXbox.leftTrigger().whileTrue(manipulatorPivot.goToIntake());
-    driverXbox.rightTrigger().whileTrue(manipulatorPivot.goToOven());
-    driverXbox.rightBumper().whileTrue(manipulatorPivot.goToScore());
+    // LEFT TRIGGER held = pickup: elevator to pickup AND pivot to intake, at the same time
+    driverXbox.leftTrigger().whileTrue(pickupCommand());
 
-    // Codriver - elevator: right stick Y moves it (up = up). It is the default command, so the
-    // elevator holds its position whenever the stick is centered.
+    // TODO: scoring (roller outtake) goes on the driver's right trigger once the roller is added
+    // driverXbox.rightTrigger().whileTrue(manipulator.outtake());
+
+    // ---------------------------------------------------------------- Codriver
+    // Elevator: right stick Y moves it (up = up). It is the default command, so the elevator
+    // holds its position whenever the stick is centered.
     elevator.setDefaultCommand(elevator.manualControl(() -> -codriverXbox.getRightY()));
 
-    // Back = declare the current position as the bottom. Only press this with the carriage
-    // resting on the bottom stop (works while disabled too).
-    codriverXbox.back().onTrue(elevator.zeroHere());
+    // Combined moves (HOLD the button; releasing it cancels both and returns to the stick)
+    // A = elevator to oven AND pivot to oven
+    codriverXbox.a().whileTrue(ovenCommand());
+    // X / Y / B = pivot to score AND elevator to L1 / L2 / L3
+    codriverXbox.x().whileTrue(scoreCommand(elevator.goToL1()));
+    codriverXbox.y().whileTrue(scoreCommand(elevator.goToL2()));
+    codriverXbox.b().whileTrue(scoreCommand(elevator.goToL3()));
 
-    // Codriver - elevator setpoints (HOLD the button; releasing it cancels and returns to stick)
-    codriverXbox.leftBumper().whileTrue(elevator.goToPickup());
-    codriverXbox.a().whileTrue(elevator.goToOven());
-    codriverXbox.x().whileTrue(elevator.goToL1());
-    codriverXbox.y().whileTrue(elevator.goToL2());
-    codriverXbox.b().whileTrue(elevator.goToL3());
-    codriverXbox.start().whileTrue(elevator.homeElevator());
+    // D-pad down = home the elevator (lowers until it stalls on the bottom stop, then zeroes)
+    codriverXbox.povDown().whileTrue(elevator.homeElevator());
+
+    // D-pad up = home the manipulator pivot. TODO: the pivot has no homing command yet, so enable
+    // this once ManipulatorPivot.homeManipulator() exists.
+    // codriverXbox.povUp().whileTrue(manipulatorPivot.homeManipulator());
+
+    // Back = declare the current elevator position as the bottom. Only press this with the
+    // carriage resting on the bottom stop (works while disabled too).
+    codriverXbox.back().onTrue(elevator.zeroHere());
   }
+
+  // ------------------------------------------------------------------ Combined moves
+  // Each one runs the elevator move and the pivot move AT THE SAME TIME. Neither move ends on its
+  // own: both keep holding their targets (Motion Magic) until the button is released.
+
+  /** Elevator down to pickup and pivot down to the intake angle. */
+  private Command pickupCommand() {
+    return Commands.parallel(elevator.goToPickup(), manipulatorPivot.goToIntake())
+        .withName("Pickup");
+  }
+
+  /** Elevator up to the oven height and pivot to the oven angle. */
+  private Command ovenCommand() {
+    return Commands.parallel(elevator.goToOven(), manipulatorPivot.goToOven()).withName("Oven");
+  }
+
+  /** Pivot to the score angle and the elevator to the given level. */
+  private Command scoreCommand(Command elevatorLevel) {
+    return Commands.parallel(manipulatorPivot.goToScore(), elevatorLevel).withName("Score");
+  }
+
+  // ------------------------------------------------------------------ Autos
 
   /**
    * Runs an elevator move until the carriage arrives (or the timeout), so it can be chained in an
