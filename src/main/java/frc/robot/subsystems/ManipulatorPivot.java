@@ -12,6 +12,7 @@ import static edu.wpi.first.units.Units.Radians;
 import static edu.wpi.first.units.Units.Rotations;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
+import static edu.wpi.first.units.Units.Seconds;
 import static edu.wpi.first.units.Units.Volts;
 
 import com.ctre.phoenix6.StatusCode;
@@ -28,11 +29,14 @@ import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularAcceleration;
 import edu.wpi.first.units.measure.AngularVelocity;
+import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.FunctionalCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.PivotConstants;
 import frc.robot.Ports;
@@ -44,12 +48,18 @@ import java.util.function.Supplier;
  * setpoint commands (intake, oven, score) move it with CTRE Motion Magic.
  *
  * <p>Angles are measured from HORIZONTAL (0 deg = parallel to the ground, up = positive). That
- * matters because the pivot uses Arm_Cosine gravity compensation, which needs the motor to report 0
- * when the pivot is horizontal. The pivot must START each power-up resting on its reference stop
- * (MIN_ANGLE). At power-on the motor reads 0, so the constructor tells it "you are at MIN_ANGLE".
- * If only the robot code restarts, the motor keeps its real angle and is left alone. If the pivot
- * was NOT on the stop at power-up (or after a brownout), put it on the stop and press the zero
- * button (zeroHere).
+ * matters because the pivot uses Arm_Cosine gravity compensation, which needs the motor to report
+ * the true angle from horizontal.
+ *
+ * <p>Zeroing works like the elevator: the code NEVER resets the position on its own. The pivot
+ * must START each power-up resting on its reference stop (MIN_ANGLE), and after every power cycle
+ * (or brownout) you press the zero button (zeroHere) with the pivot on the stop. That sets the
+ * motor to MIN_ANGLE and turns on the stop-side soft limit. A robot-code restart or redeploy keeps
+ * the motor's position, so it does not need re-zeroing. Until zeroHere is pressed, the motor reads
+ * 0 from power-on, which is only correct if MIN_ANGLE is 0.
+ *
+ * <p>Homing: instead of pressing zeroHere by hand, homeManipulator drives slowly toward the stop
+ * until the pivot stalls on it, then zeroes automatically.
  *
  * <p>Unlike the elevator there is no height conversion: with the gear ratio configured, the motor
  * already reports pivot rotations, which are angles.
@@ -67,11 +77,19 @@ public class ManipulatorPivot extends SubsystemBase {
   private static final String kMaxKey = "Pivot Tuning/Max Angle (deg)";
   private static final String kVelKey = "Pivot Tuning/Max Speed (deg per s)";
   private static final String kAccelKey = "Pivot Tuning/Max Accel (deg per s2)";
+  private static final String kHomeVoltsKey = "Pivot Tuning/Homing Volts";
+  private static final String kHomeCurrentKey = "Pivot Tuning/Homing Stall Amps";
 
   private double lastMaxRot = Double.NaN;
   private double lastMinRot = Double.NaN;
   private double lastVelRps = Double.NaN;
   private double lastAccelRps2 = Double.NaN;
+
+  // Homing state
+  private boolean homingMoved;
+  private boolean homingStalled;
+  private double homingStallSince = Double.NaN;
+  private boolean homingReverseLimitWasOn;
 
   // Motors
   private final TalonFX pivotMotor = new TalonFX(Ports.kPivotMotor, Ports.kRoboRioCANBus);
@@ -79,6 +97,7 @@ public class ManipulatorPivot extends SubsystemBase {
   private final TalonFXConfiguration config = new TalonFXConfiguration();
   private final StatusSignal<Angle> position = pivotMotor.getPosition();
   private final StatusSignal<AngularVelocity> velocity = pivotMotor.getVelocity();
+  private final StatusSignal<Current> statorCurrent = pivotMotor.getStatorCurrent();
 
   // FOC off because it needs a Phoenix Pro license
   private final VoltageOut voltageOut = new VoltageOut(0).withEnableFOC(false);
@@ -97,12 +116,7 @@ public class ManipulatorPivot extends SubsystemBase {
     buildConfig();
     applyConfig(pivotMotor);
 
-    // Power-on: the motor reads exactly 0, so tell it where it really is (the reference stop).
-    // Code-only restart: it keeps its real angle (not near 0), so leave it alone.
-    Angle startup = position.waitForUpdate(0.25).getValue();
-    if (Math.abs(startup.in(Degrees)) < PivotConstants.POWER_ON_TOLERANCE.in(Degrees)) {
-      pivotMotor.setPosition(PivotConstants.MIN_ANGLE);
-    }
+    // Note: position is deliberately NOT reset here (see the class comment).
 
     // Live-adjustable on the dashboard (clamped where they are read)
     SmartDashboard.putNumber(kRaiseKey, PivotConstants.MANUAL_RAISE.in(Volts));
@@ -115,6 +129,8 @@ public class ManipulatorPivot extends SubsystemBase {
     SmartDashboard.putNumber(kMaxKey, PivotConstants.MAX_ANGLE.in(Degrees));
     SmartDashboard.putNumber(kVelKey, PivotConstants.MAX_VELOCITY.in(DegreesPerSecond));
     SmartDashboard.putNumber(kAccelKey, PivotConstants.MAX_ACCEL.in(DegreesPerSecondPerSecond));
+    SmartDashboard.putNumber(kHomeVoltsKey, PivotConstants.HOMING_VOLTAGE.in(Volts));
+    SmartDashboard.putNumber(kHomeCurrentKey, PivotConstants.HOMING_STALL_CURRENT.in(Amps));
   }
 
   // ------------------------------------------------------------------ Live values (clamped)
@@ -213,8 +229,9 @@ public class ManipulatorPivot extends SubsystemBase {
     config.Voltage.PeakReverseVoltage = -PivotConstants.MAX_MANUAL.in(Volts);
 
     // Gains (slot 0), used by Motion Magic. Arm_Cosine: the gravity push is kG at horizontal and
-    // shrinks to 0 at straight up/down. This needs the motor to read 0 at horizontal (see the
-    // class comment) and one motor rotation per pivot rotation (the gear ratio above).
+    // shrinks to 0 at straight up/down. This needs the motor to read the true angle from
+    // horizontal (see the class comment) and one motor rotation per pivot rotation (the gear
+    // ratio above).
     config.Slot0.GravityType = GravityTypeValue.Arm_Cosine;
     config.Slot0.kP = PivotConstants.kP;
     config.Slot0.kI = PivotConstants.kI;
@@ -313,6 +330,86 @@ public class ManipulatorPivot extends SubsystemBase {
         .withName("Pivot Zero Here");
   }
 
+  private void setReverseLimitEnabled(boolean enabled) {
+    config.SoftwareLimitSwitch.ReverseSoftLimitEnable = enabled;
+    StatusCode s = pivotMotor.getConfigurator().apply(config.SoftwareLimitSwitch);
+    if (!s.isOK()) {
+      DriverStation.reportError("Pivot: stop-side limit update failed: " + s, false);
+    }
+  }
+
+  /**
+   * Drives slowly toward the reference stop (lower angles) until the pivot stalls on it, then
+   * zeroes (MIN_ANGLE) and turns the stop-side soft limit back on. It requires the pivot, so the
+   * stick is locked out while it runs. If it is cancelled, times out, or never sees the pivot move,
+   * it does NOT zero and puts the stop-side limit back the way it was.
+   */
+  public Command homeManipulator() {
+    return new FunctionalCommand(
+            () -> {
+              homingMoved = false;
+              homingStalled = false;
+              homingStallSince = Double.NaN;
+              homingReverseLimitWasOn = config.SoftwareLimitSwitch.ReverseSoftLimitEnable;
+              setReverseLimitEnabled(false); // so a wrong old zero can't block the move
+            },
+            this::homingStep,
+            interrupted -> {
+              pivotMotor.stopMotor();
+              if (!interrupted && homingStalled) {
+                pivotMotor.setPosition(PivotConstants.MIN_ANGLE);
+                setReverseLimitEnabled(true);
+              } else {
+                setReverseLimitEnabled(homingReverseLimitWasOn);
+                DriverStation.reportError(
+                    "Pivot: homing stopped without finding the stop. NOT zeroed. If it never"
+                        + " moved, raise Homing Volts (or it is already on the stop: use Start).",
+                    false);
+              }
+            },
+            () -> homingStalled,
+            this)
+        .withTimeout(PivotConstants.HOMING_TIMEOUT.in(Seconds))
+        .withName("Pivot Home");
+  }
+
+  private void homingStep() {
+    double volts =
+        MathUtil.clamp(
+            dash(kHomeVoltsKey, PivotConstants.HOMING_VOLTAGE.in(Volts)),
+            0,
+            PivotConstants.HOMING_MAX_VOLTAGE.in(Volts));
+    double stallAmps =
+        MathUtil.clamp(
+            dash(kHomeCurrentKey, PivotConstants.HOMING_STALL_CURRENT.in(Amps)),
+            1,
+            PivotConstants.STATOR_CURRENT_LIMIT.in(Amps));
+
+    pivotMotor.setControl(voltageOut.withOutput(Volts.of(-volts)));
+
+    double speedDegPerS = velocity.refresh().getValue().in(DegreesPerSecond);
+    double amps = Math.abs(statorCurrent.refresh().getValue().in(Amps));
+
+    // It must be seen moving toward the stop before a stall counts
+    if (speedDegPerS < -PivotConstants.HOMING_MOVING_VELOCITY.in(DegreesPerSecond)) {
+      homingMoved = true;
+    }
+
+    boolean stalled =
+        homingMoved
+            && Math.abs(speedDegPerS) < PivotConstants.HOMING_STALL_VELOCITY.in(DegreesPerSecond)
+            && amps > stallAmps;
+
+    if (!stalled) {
+      homingStallSince = Double.NaN;
+    } else if (Double.isNaN(homingStallSince)) {
+      homingStallSince = Timer.getFPGATimestamp();
+    } else if (Timer.getFPGATimestamp() - homingStallSince
+        >= PivotConstants.HOMING_DEBOUNCE.in(Seconds)) {
+      homingStalled = true;
+    }
+  }
+
   // ------------------------------------------------------------------ Setpoints (Motion Magic)
 
   /** Moves to the intake angle (dashboard: Pivot Tuning/Intake). */
@@ -366,5 +463,7 @@ public class ManipulatorPivot extends SubsystemBase {
     SmartDashboard.putNumber("Pivot Angle (deg)", position.refresh().getValue().in(Degrees));
     SmartDashboard.putNumber(
         "Pivot Velocity (deg/s)", velocity.refresh().getValue().in(DegreesPerSecond));
+    SmartDashboard.putNumber(
+        "Pivot Stator Current (A)", statorCurrent.refresh().getValue().in(Amps));
   }
 }

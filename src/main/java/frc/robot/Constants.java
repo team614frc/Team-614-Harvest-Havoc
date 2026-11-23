@@ -1,16 +1,18 @@
-package frc.robot;
-
 // Copyright (c) FIRST and other WPILib contributors.
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
 
-import static edu.wpi.first.units.Units.*;
+package frc.robot;
+
 import static edu.wpi.first.units.Units.Amps;
 import static edu.wpi.first.units.Units.Degrees;
 import static edu.wpi.first.units.Units.DegreesPerSecond;
 import static edu.wpi.first.units.Units.DegreesPerSecondPerSecond;
+import static edu.wpi.first.units.Units.Inches;
+import static edu.wpi.first.units.Units.InchesPerSecond;
 import static edu.wpi.first.units.Units.RPM;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
+import static edu.wpi.first.units.Units.Second;
 import static edu.wpi.first.units.Units.Seconds;
 import static edu.wpi.first.units.Units.Volts;
 
@@ -25,6 +27,14 @@ import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.units.measure.Time;
 import edu.wpi.first.units.measure.Voltage;
 
+/**
+ * The Constants class provides a convenient place for teams to hold robot-wide numerical or boolean
+ * constants. This class should not be used for any other purpose. All constants should be declared
+ * globally (i.e. public static). Do not put anything functional in this class.
+ *
+ * <p>It is advised to statically import this class (or one of its inner classes) wherever the
+ * constants are needed, to reduce verbosity.
+ */
 public final class Constants {
   public static class OperatorConstants {
     public static final int DRIVER_CONTROLLER_PORT = 0;
@@ -140,8 +150,6 @@ public final class Constants {
 
   public static class PivotConstants {
     // ---- Wiring / direction
-    // false = follower spins same way as leader, true = opposite (motors facing each other)
-    public static final boolean FOLLOWER_OPPOSES_LEADER = false; // TODO verify on blocks
     // Flip if the pivot moves toward LOWER angles when the stick is pushed positive
     public static final boolean INVERTED = false; // TODO verify on blocks
 
@@ -171,7 +179,8 @@ public final class Constants {
     // ---- Travel limits
     // ANGLES ARE MEASURED FROM HORIZONTAL: 0 deg = parallel to the ground, up = positive.
     // The pivot must START each power-up resting on its reference stop, which is the LOWEST angle
-    // (MIN_ANGLE). Angles increase away from that stop.
+    // (MIN_ANGLE). Angles increase away from that stop. After every power cycle, press the zero
+    // button with the pivot on the stop (the code never resets the position by itself).
     public static final Angle MIN_ANGLE = Degrees.of(0); // TODO angle at the reference stop
 
     /**
@@ -180,14 +189,14 @@ public final class Constants {
     public static final Angle MAX_ANGLE = Degrees.of(30); // TODO measure
 
     // ---- Hard caps for the live dashboard values (Elastic can never go past these)
-    public static final Angle ABSOLUTE_MIN_ANGLE = Degrees.of(0); // TODO real hard-stop limit
-    public static final Angle ABSOLUTE_MAX_ANGLE = Degrees.of(360); // TODO real hard-stop limit
+    // Tied to the travel limits above until the real hard-stop angles are measured. Do not widen
+    // these (or set them to something like 0 / 360) without measuring: a typo on the dashboard
+    // could then move the soft limit past the hard stop. If MIN_ANGLE is set below horizontal,
+    // this floor follows it automatically.
+    public static final Angle ABSOLUTE_MIN_ANGLE = MIN_ANGLE; // TODO real hard-stop limit
+    public static final Angle ABSOLUTE_MAX_ANGLE = MAX_ANGLE; // TODO real hard-stop limit
     public static final AngularVelocity ABSOLUTE_MAX_VELOCITY = DegreesPerSecond.of(180);
     public static final AngularAcceleration ABSOLUTE_MAX_ACCEL = DegreesPerSecondPerSecond.of(360);
-
-    // Used at startup to tell "the motor just powered on" (it reads 0) from "only the robot code
-    // restarted" (it keeps its real angle).
-    public static final Angle POWER_ON_TOLERANCE = Degrees.of(1);
 
     // ---- Setpoints (keep them between MIN_ANGLE and MAX_ANGLE, they are clamped to it)
     public static final Angle INTAKE = Degrees.of(5); // TODO measure
@@ -220,5 +229,17 @@ public final class Constants {
     // Profile limits. Deliberately slow to start.
     public static final AngularVelocity MAX_VELOCITY = DegreesPerSecond.of(60);
     public static final AngularAcceleration MAX_ACCEL = DegreesPerSecondPerSecond.of(120);
+
+    // ---- Homing: drive slowly toward the reference stop until it stalls, then zero.
+    // All of these are starting guesses. Tune them from the dashboard first
+    // (Pivot Tuning/Homing ...), then copy the final values here.
+    // Magnitude, applied toward LOWER angles (toward the stop):
+    public static final Voltage HOMING_VOLTAGE = Volts.of(1.0);
+    public static final Voltage HOMING_MAX_VOLTAGE = Volts.of(3.0); // dashboard cap
+    public static final Current HOMING_STALL_CURRENT = Amps.of(15); // TODO tune
+    public static final AngularVelocity HOMING_MOVING_VELOCITY = DegreesPerSecond.of(2);
+    public static final AngularVelocity HOMING_STALL_VELOCITY = DegreesPerSecond.of(0.5);
+    public static final Time HOMING_DEBOUNCE = Seconds.of(0.25); // stall must last this long
+    public static final Time HOMING_TIMEOUT = Seconds.of(10);
   }
 }

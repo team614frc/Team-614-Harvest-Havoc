@@ -9,6 +9,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.ElevatorConstants;
 import frc.robot.Constants.OperatorConstants;
+import frc.robot.Constants.PivotConstants;
 import frc.robot.subsystems.Elevator;
 import frc.robot.subsystems.ManipulatorPivot;
 import frc.robot.subsystems.Swerve;
@@ -79,7 +80,12 @@ public class RobotContainer {
     // holds its position whenever the stick is centered.
     elevator.setDefaultCommand(elevator.manualControl(() -> -codriverXbox.getRightY()));
 
-    // Combined moves (HOLD the button; releasing it cancels both and returns to the stick)
+    // Pivot: left stick Y moves it (up = toward higher angles). Default command, so the pivot
+    // holds whenever the stick is centered.
+    manipulatorPivot.setDefaultCommand(
+        manipulatorPivot.manualControl(() -> -codriverXbox.getLeftY()));
+
+    // Combined moves (HOLD the button; releasing it cancels both and returns to the sticks)
     // A = elevator to oven AND pivot to oven
     codriverXbox.a().whileTrue(ovenCommand());
     // X / Y / B = pivot to score AND elevator to L1 / L2 / L3
@@ -90,13 +96,18 @@ public class RobotContainer {
     // D-pad down = home the elevator (lowers until it stalls on the bottom stop, then zeroes)
     codriverXbox.povDown().whileTrue(elevator.homeElevator());
 
-    // D-pad up = home the manipulator pivot. TODO: the pivot has no homing command yet, so enable
-    // this once ManipulatorPivot.homeManipulator() exists.
-    // codriverXbox.povUp().whileTrue(manipulatorPivot.homeManipulator());
+    // D-pad up = home the manipulator pivot (drives toward the reference stop until it stalls,
+    // then zeroes). Locks out the pivot stick while it runs.
+    codriverXbox.povUp().whileTrue(manipulatorPivot.homeManipulator());
 
-    // Back = declare the current elevator position as the bottom. Only press this with the
+    // Back = declare the current ELEVATOR position as the bottom. Only press this with the
     // carriage resting on the bottom stop (works while disabled too).
     codriverXbox.back().onTrue(elevator.zeroHere());
+
+    // Start = declare the current PIVOT position as the reference stop (MIN_ANGLE) and turn on its
+    // stop-side soft limit. Only press this with the pivot resting on its stop (works while
+    // disabled too). Do this after every power cycle.
+    codriverXbox.start().onTrue(manipulatorPivot.zeroHere());
   }
 
   // ------------------------------------------------------------------ Combined moves
@@ -130,6 +141,12 @@ public class RobotContainer {
         .withTimeout(ElevatorConstants.SETPOINT_TIMEOUT.in(Seconds));
   }
 
+  /** Same as toSetpoint, but for a pivot move. */
+  private Command toPivotSetpoint(Command move) {
+    return move.until(manipulatorPivot::atSetpoint)
+        .withTimeout(PivotConstants.SETPOINT_TIMEOUT.in(Seconds));
+  }
+
   // The autos you can pick on the dashboard before enabling Autonomous
   private void configureAutos() {
     autoChooser.setDefaultOption("Do Nothing", Commands.none());
@@ -139,6 +156,10 @@ public class RobotContainer {
     autoChooser.addOption("Elevator: L1", toSetpoint(elevator.goToL1()));
     autoChooser.addOption("Elevator: L2", toSetpoint(elevator.goToL2()));
     autoChooser.addOption("Elevator: L3", toSetpoint(elevator.goToL3()));
+
+    autoChooser.addOption("Pivot: Intake", toPivotSetpoint(manipulatorPivot.goToIntake()));
+    autoChooser.addOption("Pivot: Oven", toPivotSetpoint(manipulatorPivot.goToOven()));
+    autoChooser.addOption("Pivot: Score", toPivotSetpoint(manipulatorPivot.goToScore()));
 
     autoChooser.addOption(
         "Elevator: Pickup then Top",
