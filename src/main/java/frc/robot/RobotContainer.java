@@ -8,12 +8,11 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.ElevatorConstants;
-import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.Constants.PivotConstants;
 import frc.robot.subsystems.Elevator;
-import frc.robot.subsystems.ManipulatorPivot;
 import frc.robot.subsystems.Manipulator;
+import frc.robot.subsystems.ManipulatorPivot;
 import frc.robot.subsystems.Swerve;
 import swervelib.SwerveInputStream;
 
@@ -73,19 +72,13 @@ public class RobotContainer {
     // B held = point-to-direction drive mode (optional, remove if you don't want it)
     driverXbox.b().whileTrue(drivebase.driveFieldOriented(driveDirectAngle));
 
-    // Left trigger held = intake
-    driverXbox.leftTrigger().whileTrue(manipulator.intake()).onFalse(manipulator.stop());
-
-    // Right trigger held = outtake
-    driverXbox.rightTrigger().whileTrue(manipulator.outtake()).onFalse(manipulator.stop());
-
-    new Trigger(manipulator::hasGamePiece).onTrue(manipulator.stop());
-
-    // LEFT TRIGGER held = pickup: elevator to pickup AND pivot to intake, at the same time
+    // Left trigger held = full pickup: elevator to pickup + pivot to intake + rollers intake.
+    // Releasing the trigger cancels everything and the codriver sticks take over again.
     driverXbox.leftTrigger().whileTrue(pickupCommand());
 
-    // TODO: scoring (roller outtake) goes on the driver's right trigger once the roller is added
-    // driverXbox.rightTrigger().whileTrue(manipulator.outtake());
+    // Right trigger held = outtake / score. The codriver sets the height and angle (X/Y/B),
+    // and the driver just spits the piece out.
+    driverXbox.rightTrigger().whileTrue(manipulator.outtake());
 
     // ---------------------------------------------------------------- Codriver
     // Elevator: right stick Y moves it (up = up). It is the default command, so the elevator
@@ -126,9 +119,15 @@ public class RobotContainer {
   // Each one runs the elevator move and the pivot move AT THE SAME TIME. Neither move ends on its
   // own: both keep holding their targets (Motion Magic) until the button is released.
 
-  /** Elevator down to pickup and pivot down to the intake angle. */
+  /**
+   * Elevator down to pickup, pivot down to the intake angle, and rollers intake until a piece is
+   * held. The elevator and pivot keep holding the pickup pose until the trigger is released.
+   */
   private Command pickupCommand() {
-    return Commands.parallel(elevator.goToPickup(), manipulatorPivot.goToIntake())
+    return Commands.parallel(
+            elevator.goToPickup(),
+            manipulatorPivot.goToIntake(),
+            manipulator.intake().until(manipulator::hasGamePiece))
         .withName("Pickup");
   }
 

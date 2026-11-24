@@ -23,10 +23,12 @@ public class Manipulator extends SubsystemBase {
   // Dashboard names for the live-adjustable values (volts, always entered as positive numbers)
   private static final String kIntakeKey = "Manipulator/Intake Volts";
   private static final String kOuttakeKey = "Manipulator/Outtake Volts";
+  // Stator current (amps) above which a stalled roller counts as holding a game piece.
+  // Set this from "Manipulator Current (A)" with a piece jammed in at the real intake voltage.
+  private static final String kGamePieceAmpsKey = "Manipulator/Game Piece Amps";
 
-  // Instantiate the motor controller for the manipulator using the TalonFX class and the ID from
-  // the Ports class
-  private final TalonFX manipulatorMotor = new TalonFX(Ports.kManipulator);
+  // Same CAN bus as the other subsystems
+  private final TalonFX manipulatorMotor = new TalonFX(Ports.kManipulator, Ports.kRoboRioCANBus);
 
   // Reusable control request (avoids allocating a new object every loop).
   // FOC off because it needs a Phoenix Pro license.
@@ -48,6 +50,7 @@ public class Manipulator extends SubsystemBase {
     // Live-adjustable on the dashboard (clamped where they are read)
     SmartDashboard.putNumber(kIntakeKey, ManipulatorConstants.INTAKE_VOLTAGE.in(Volts));
     SmartDashboard.putNumber(kOuttakeKey, ManipulatorConstants.OUTTAKE_VOLTAGE.in(Volts));
+    SmartDashboard.putNumber(kGamePieceAmpsKey, ManipulatorConstants.MIN_CURRENT.in(Amps));
   }
 
   private void configureMotor() {
@@ -84,11 +87,6 @@ public class Manipulator extends SubsystemBase {
     SmartDashboard.putBoolean("Manipulator Has Game Piece", hasGamePiece());
   }
 
-  // Exposes the manipulator motor to other classes
-  public TalonFX getMotor() {
-    return manipulatorMotor;
-  }
-
   /**
    * Reads a dashboard number (in volts), limited to 0..MAX_VOLTAGE so a typo cannot send full
    * power.
@@ -106,15 +104,24 @@ public class Manipulator extends SubsystemBase {
     manipulatorMotor.setControl(voltageRequest.withOutput(volts));
   }
 
-  // Command to run the manipulator inward (e.g., for gripping or intaking)
+  /**
+   * Runs the rollers inward for as long as the command is scheduled, then returns to rest. The
+   * dashboard voltage is re-read every loop, so changes apply while the trigger is held. Never ends
+   * on its own: add .until(manipulator::hasGamePiece) where you want it to stop.
+   */
   public Command intake() {
-    return this.runOnce(() -> set(tunable(kIntakeKey, ManipulatorConstants.INTAKE_VOLTAGE)));
+    return this.runEnd(
+            () -> set(tunable(kIntakeKey, ManipulatorConstants.INTAKE_VOLTAGE)),
+            () -> set(ManipulatorConstants.REST_VOLTAGE))
+        .withName("Manipulator Intake");
   }
 
-  // Command to run the manipulator outward. The dashboard value is a positive magnitude.
+  /** Runs the rollers outward while scheduled, then returns to rest. */
   public Command outtake() {
-    return this.runOnce(
-        () -> set(tunable(kOuttakeKey, ManipulatorConstants.OUTTAKE_VOLTAGE).unaryMinus()));
+    return this.runEnd(
+            () -> set(tunable(kOuttakeKey, ManipulatorConstants.OUTTAKE_VOLTAGE).unaryMinus()),
+            () -> set(ManipulatorConstants.REST_VOLTAGE))
+        .withName("Manipulator Outtake");
   }
 
   // Command to stop / idle the manipulator
@@ -132,9 +139,10 @@ public class Manipulator extends SubsystemBase {
   private boolean isDrawingGamePieceCurrent() {
     Current current = getManipulatorCurrent();
     Voltage output = manipulatorMotor.getMotorVoltage().getValue();
+    double thresholdAmps =
+        SmartDashboard.getNumber(kGamePieceAmpsKey, ManipulatorConstants.MIN_CURRENT.in(Amps));
 
-    return output.gt(ManipulatorConstants.MIN_OUTPUT)
-        && current.gt(ManipulatorConstants.MIN_CURRENT);
+    return output.gt(ManipulatorConstants.MIN_OUTPUT) && current.in(Amps) > thresholdAmps;
   }
 
   // Stator (motor) current
